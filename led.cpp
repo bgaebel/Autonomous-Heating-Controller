@@ -1,103 +1,245 @@
-#include <Arduino.h>
 #include "led.h"
 
-// Adjust this to your relay/LED pin
-const int LED_PIN = LED_BUILTIN;
+/***************** Internal State **********************************************/
+static bool baseHeaterOn   = false;
 
-// Internal state
-static uint8_t currentLedState = LED_OFF;
-static unsigned long lastBlinkTime = 0;
-static uint8_t blinkCount = 0;
-static bool ledOn = false;
+static bool wifiOkFlag     = false;
+static bool mqttOkFlag     = false;
+static bool sensorOkFlag   = false;
+
+static bool anyFaultCached = false;     // caches if at least one subsystem fails
+
+// signature state machine
+enum SigState
+{
+  SIG_IDLE,         // no faults -> no group
+  SIG_WAIT,         // waiting LED_GROUP_PERIOD_MS to emit next group
+  SIG_P1_ON,        // WiFi pulse ON (short/long)
+  SIG_P1_GAP,       // inter-pulse gap
+  SIG_P2_ON,        // MQTT pulse ON
+  SIG_P2_GAP,
+  SIG_P3_ON,        // Sensor pulse ON
+  SIG_DONE          // group finished -> back to WAIT
+};
+
+static SigState      sigState     = SIG_IDLE;
+static unsigned long tRef         = 0;
+
+/***************** Helpers ******************************************************/
+static inline void writeLedLogical(bool logicalOn)
+{
+#if LED_ACTIVE_LOW
+  digitalWrite(LED_PIN, logicalOn ? LOW : HIGH);
+#else
+  digitalWrite(LED_PIN, logicalOn ? HIGH : LOW);
+#endif
+}
+
+static inline bool anyFault()
+{
+  return !wifiOkFlag || !mqttOkFlag || !sensorOkFlag;
+}
+
+/***************** restartSignature *********************************************
+ * params: none
+ * return: void
+ * Description:
+ * Re-evaluates whether we should be idle or waiting for next group.
+ ******************************************************************************/
+static void restartSignature()
+{
+  const bool fault = anyFault();
+  anyFaultCached = fault;
+
+  if (!fault)
+  {
+    sigState = SIG_IDLE;
+  }
+  else
+  {
+    sigState = SIG_WAIT;
+    tRef = millis();   // start waiting full period
+  }
+}
 
 /***************** initLed ******************************************************
+ * params: none
+ * return: void
  * Description:
- * Initializes the LED pin and sets initial state to OFF.
+ * Initializes LED GPIO and sets default (base OFF, subsystems unknown=false).
  ******************************************************************************/
 void initLed()
 {
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, HIGH);
-  Serial.println(F("[LED] Initialized"));
+  baseHeaterOn = false;
+
+  // assume all unknown -> treated as NOT OK until modules report their status
+  wifiOkFlag = false;
+  mqttOkFlag = false;
+  sensorOkFlag = false;
+
+  restartSignature();
+  writeLedLogical(false);
 }
 
-/***************** setLedState **************************************************
- * params:
- *   state: one of the LED_* constants
+/***************** ledSetBaseFromHeater *****************************************
+ * params: heaterOn
+ * return: void
  * Description:
- * Sets the blink mode based on system status.
+ * Mirrors relay state as LED base. The overlay pulses will invert it briefly.
  ******************************************************************************/
-void setLedState(uint8_t state)
+void ledSetBaseFromHeater(bool heaterOn)
 {
-  currentLedState = state;
-  blinkCount = 0;
-  ledOn = false;
-  lastBlinkTime = millis();
-
-  Serial.print(F("[LED] State changed to "));
-  Serial.println(state);
+  baseHeaterOn = heaterOn;
 }
 
-/***************** handleLed ****************************************************
- * Description:
- * Non-blocking LED blink handler.
- * Called frequently in loop().
- * LED pattern:
- *   WIFI_CONNECTING   -> 2 short blinks
- *   MQTT_CONNECTING   -> 3 short blinks
- *   RUNNING           -> 1 short blink
- *   ERROR             -> 5 short blinks
- ******************************************************************************/
+/***************** ledSetSubsystemStatus ****************************************/
+void ledSetSubsystemStatus(bool wifiOk, bool mqttOk, bool sensorOk)
+{
+  const bool prevFault = anyFaultCached;
+
+  wifiOkFlag   = wifiOk;
+  mqttOkFlag   = mqttOk;
+  sensorOkFlag = sensorOk;
+
+  // If fault/ok changed, recompute signature scheduling.
+  if (prevFault != anyFault())
+  {
+    restartSignature();
+  }
+}
+
+/***************** Convenience setters ******************************************/
+void ledSetWifiOk(bool ok)
+{
+  ledSetSubsystemStatus(ok, mqttOkFlag, sensorOkFlag);
+}
+
+void ledSetMqttOk(bool ok)
+{
+  ledSetSubsystemStatus(wifiOkFlag, ok, sensorOkFlag);
+}
+
+void ledSetSensorOk(bool ok)
+{
+  ledSetSubsystemStatus(wifiOkFlag, mqttOkFlag, ok);
+}
+
+/***************** handleLed ****************************************************/
 void handleLed()
 {
-  unsigned long now = millis();
-  static unsigned long blinkInterval = 150;   // short blink
-  static unsigned long pauseInterval = 2000;  // long pause
+  const unsigned long now = millis();
 
-  uint8_t targetBlinkCount = 0;
-
-  switch (currentLedState)
+  // recompute if fault presence toggled (safety net if someone changed flags rapidly)
+  const bool faultNow = anyFault();
+  if (faultNow != anyFaultCached)
   {
-    case LED_OFF: 
-      digitalWrite(LED_PIN, HIGH);
-      return;
-    case LED_RUNNING:
-      targetBlinkCount = 1;
-      break;
-    case LED_WIFI_CONNECTING:
-      targetBlinkCount = 2;
-      break;
-    case LED_MQTT_CONNECTING:
-      targetBlinkCount = 3;
-      break;
-    case LED_ERROR:
-      targetBlinkCount = 5;
-      break;
+    restartSignature();
   }
 
-  // Blink logic
-  if (blinkCount < targetBlinkCount)
+  // default: no overlay
+  bool overlayPulse = false;
+
+  switch (sigState)
   {
-    if (!ledOn && now - lastBlinkTime >= pauseInterval)
+    case SIG_IDLE:
     {
-      ledOn = true;
-      digitalWrite(LED_PIN, LOW);
-      lastBlinkTime = now;
+      // no faults -> nothing to show
+      break;
     }
-    else if (ledOn && now - lastBlinkTime >= blinkInterval)
+
+    case SIG_WAIT:
     {
-      ledOn = false;
-      digitalWrite(LED_PIN, HIGH);
-      lastBlinkTime = now;
-      blinkCount++;
+      if ((now - tRef) >= LED_GROUP_PERIOD_MS)
+      {
+        // time to emit a new group (only if still faulty)
+        if (anyFault())
+        {
+          sigState = SIG_P1_ON;
+          tRef = now;
+          overlayPulse = true; // start WiFi pulse ON now
+        }
+        else
+        {
+          // fault cleared while waiting
+          sigState = SIG_IDLE;
+        }
+      }
+      break;
+    }
+
+    case SIG_P1_ON:
+    {
+      // WiFi pulse duration: long if wifi FAIL, short if OK
+      const unsigned long dur = wifiOkFlag ? LED_PULSE_SHORT_MS : LED_PULSE_LONG_MS;
+      overlayPulse = true;
+
+      if ((now - tRef) >= dur)
+      {
+        sigState = SIG_P1_GAP;
+        tRef = now;
+      }
+      break;
+    }
+
+    case SIG_P1_GAP:
+    {
+      if ((now - tRef) >= LED_INTER_PULSE_GAP_MS)
+      {
+        sigState = SIG_P2_ON;
+        tRef = now;
+        overlayPulse = true; // MQTT starts
+      }
+      break;
+    }
+
+    case SIG_P2_ON:
+    {
+      const unsigned long dur = mqttOkFlag ? LED_PULSE_SHORT_MS : LED_PULSE_LONG_MS;
+      overlayPulse = true;
+
+      if ((now - tRef) >= dur)
+      {
+        sigState = SIG_P2_GAP;
+        tRef = now;
+      }
+      break;
+    }
+
+    case SIG_P2_GAP:
+    {
+      if ((now - tRef) >= LED_INTER_PULSE_GAP_MS)
+      {
+        sigState = SIG_P3_ON;
+        tRef = now;
+        overlayPulse = true; // Sensor starts
+      }
+      break;
+    }
+
+    case SIG_P3_ON:
+    {
+      const unsigned long dur = sensorOkFlag ? LED_PULSE_SHORT_MS : LED_PULSE_LONG_MS;
+      overlayPulse = true;
+
+      if ((now - tRef) >= dur)
+      {
+        sigState = SIG_DONE;
+        tRef = now;
+      }
+      break;
+    }
+
+    case SIG_DONE:
+    {
+      // group finished -> wait full period again
+      sigState = SIG_WAIT;
+      tRef = now;
+      break;
     }
   }
-  else
-  {
-    // Wait for next sequence
-    if (now - lastBlinkTime >= pauseInterval)
-    {
-      blinkCount = 0;
-    }
-  }
+
+  // Merge base (Heater) with overlay (invert during pulse)
+  const bool finalLogicalOn = (baseHeaterOn ^ overlayPulse);
+  writeLedLogical(finalLogicalOn);
 }

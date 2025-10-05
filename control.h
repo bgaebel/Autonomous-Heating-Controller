@@ -4,35 +4,36 @@
 #include <Arduino.h>
 
 /***************** Enums ********************************************************
- * ControlMode: operation mode of controller
- * ControlState: actual heating state
+ * params: none
+ * return: n/a
+ * Description:
+ * ControlMode: requested operation mode of controller
+ * ControlState: physical heating state
  ******************************************************************************/
 enum ControlMode
 {
-  MODE_AUTO,
-  MODE_MANUAL,
+  MODE_AUTO = 0,
   MODE_OFF,
   MODE_BOOST
 };
 
 enum ControlState
 {
-  STATE_IDLE,
+  STATE_IDLE = 0,
   STATE_HEATING,
   STATE_ERROR
 };
 
-/***************** Global Accessors ********************************************/
-ControlState getControlState();
-void setControlState(ControlState s);
+/***************** API **********************************************************/
+void initControl();
+void handleControl();
+bool isHeaterOn();
 
+ControlState getControlState();
 ControlMode getControlMode();
 void setControlMode(ControlMode m);
 
-/***************** Function Declarations ***************************************/
-void initControl();
-void handleControl();
 const char* modeToStr(ControlMode m);
 const char* stateToStr(ControlState s);
 
-#endif
+#endif // CONTROL_H

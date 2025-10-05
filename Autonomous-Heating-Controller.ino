@@ -9,6 +9,8 @@
 #include "web.h"
 #include "led.h"
 #include <ArduinoOTA.h>
+#include "history.h"
+#include "ntp.h"
 
 /***************** setup *******************************************************
  * Description:
@@ -23,7 +25,6 @@ void setup()
   Serial.printf("ChipID (HEX): 0x%06X\n", ESP.getChipId());
 
   initLed();
-  setLedState(LED_WIFI_CONNECTING);
 
   loadConfig();          // from config.cpp
   initWifi();            // try WiFi connection
@@ -32,6 +33,8 @@ void setup()
   initSensor();          // initialize GY-21
   initControl();         // control logic
   initWebServer();       // local web UI
+  initNtp();        // falls noch nicht aufgerufen; ist idempotent
+  initHistory();    // mount FS + Ringpuffer bereitstellen
 
   Serial.println(F("[SYS] Setup complete."));
 }
@@ -42,11 +45,21 @@ void setup()
  ******************************************************************************/
 void loop()
 {
+  if (otaIsActive())
+  {
+    handleOta();   // volle Bandbreite fürs OTA
+    handleMdns();
+    ntpTick();
+    return;
+  }
   handleLed();             // LED status indicator
   ensureWifi();            // reconnect WiFi if needed
-  mqttReconnectIfNeeded(); // reconnect MQTT if needed
+  ensureMQTT();            // reconnect MQTT if needed
   handleSensor();          // update readings
   handleControl();         // apply control logic
-  ArduinoOTA.handle();     // process OTA updates
+  handleOta();             // process OTA updates
   handleWebServer();       // serve web requests
+  handleMdns();
+  ntpTick();               // <<< NTP tick
+  handleHistory();         // log history
 }

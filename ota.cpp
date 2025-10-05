@@ -1,28 +1,49 @@
 #include "ota.h"
-#include "led.h"
-#include "control.h"
 #include "config.h"
-#include "secrets.h"
-#include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 
-/***************** setupOta *************************************/
+static volatile bool g_otaActive = false;
+
+/***************** initOta ******************************************************
+ * params: none
+ * return: void
+ * Description:
+ * Initializes ArduinoOTA AFTER WiFi + mDNS are up. Does NOT start mDNS.
+ ******************************************************************************/
 void initOta()
 {
-  if (WiFi.status() != WL_CONNECTED) return;
+  ArduinoOTA.setHostname(getHostLabel());
+  ArduinoOTA.onStart([]()
+  {
+    g_otaActive = true;
+    // Optional: hier ggf. kurz Dinge drosseln (MQTT publish stoppen etc.)
+    Serial.println(F("[OTA] Start (fast-path engaged)"));
+  });
 
-  String chip = String(ESP.getChipId(), HEX);
-  String host = "heatctrl-" + chip + "-" + BASE_TOPIC;
-  host.toLowerCase(); host.replace(" ", "-");
+  ArduinoOTA.onEnd([]()
+  {
+    Serial.println(F("[OTA] End"));
+    g_otaActive = false;
+  });
 
-  ArduinoOTA.setHostname(host.c_str());
-  ArduinoOTA.setPassword(OTA_PASS);
-
-  ArduinoOTA.onStart([](){ Serial.println(F("[OTA] Start")); });
-  ArduinoOTA.onEnd([](){ Serial.println(F("[OTA] End")); });
-  ArduinoOTA.onError([](ota_error_t e){ Serial.printf("[OTA] Error %u\n", e); });
+  ArduinoOTA.onError([](ota_error_t e)
+  {
+    Serial.printf("[OTA] Error %u\n", e);
+    g_otaActive = false;
+  });
 
   ArduinoOTA.begin();
-  MDNS.begin(host.c_str());
-  Serial.printf("[OTA] Ready: %s.local\n", host.c_str());
+  Serial.println(F("[OTA] Ready (announced via mDNS)"));
+}
+
+/***************** handleOta ****************************************************/
+void handleOta()
+{
+  ArduinoOTA.handle();
+}
+
+/***************** otaIsActive **************************************************/
+bool otaIsActive()
+{
+  return g_otaActive;
 }

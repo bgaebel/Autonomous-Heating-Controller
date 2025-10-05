@@ -1,107 +1,148 @@
 #include "config.h"
+#include <string.h>
 
 Config config;
 
+static float clampf(float v, float lo, float hi)
+{
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
+
 /***************** loadConfig ***************************************************
+ * params: none
+ * return: void
  * Description:
- * Loads configuration from EEPROM. If invalid, uses default values.
+ * Loads configuration from EEPROM. If invalid, uses defaults and writes them.
  ******************************************************************************/
 void loadConfig()
 {
   EEPROM.begin(EEPROM_SIZE);
-  EEPROM.get(EEPROM_ADDR, config);
 
-  // Validate values
-  if (isnan(config.setPoint) || config.setPoint < 5 || config.setPoint > 35)
+  Config tmp;
+  EEPROM.get(EEPROM_ADDR, tmp);
+
+  bool ok = (tmp.magic == CONFIG_MAGIC) && (tmp.version == CONFIG_VERSION);
+
+  if (!ok)
   {
-    Serial.println(F("[CONFIG] Invalid EEPROM data. Loading defaults."));
-    config.setPoint = 21.0;
-    config.hysteresis = 0.5;
-    config.boostMinutes = 15;
-    config.mode = MODE_AUTO;
+    config = Config{};
     saveConfig();
-  }
-  else
-  {
-    Serial.println(F("[CONFIG] Loaded from EEPROM:"));
+    Serial.println(F("[CONFIG] Defaults stored (invalid header)."));
+    return;
   }
 
-  Serial.printf("  SetPoint: %.2f°C\n", config.setPoint);
-  Serial.printf("  Hysteresis: %.2f°C\n", config.hysteresis);
-  Serial.printf("  Boost: %d min\n", config.boostMinutes);
-  Serial.printf("  Mode: %d\n", config.mode);
+  // Range-sanitize to avoid nonsense values
+  tmp.setPoint    = clampf(tmp.setPoint, 5.0f, 35.0f);
+  tmp.hysteresis  = clampf(tmp.hysteresis, 0.1f, 5.0f);
+  if (tmp.boostMinutes < 0)   tmp.boostMinutes = 0;
+  if (tmp.boostMinutes > 240) tmp.boostMinutes = 240;
+
+  config = tmp;
+  Serial.println(F("[CONFIG] Loaded from EEPROM."));
 }
 
 /***************** saveConfig ***************************************************
+ * params: none
+ * return: void
  * Description:
- * Writes current configuration to EEPROM.
+ * Writes config to EEPROM. Keep the number of writes conservative.
  ******************************************************************************/
 void saveConfig()
 {
   EEPROM.put(EEPROM_ADDR, config);
   EEPROM.commit();
-  Serial.println(F("[CONFIG] Saved to EEPROM."));
 }
 
-/***************** getSetPoint **************************************************
- * Description:
- * Returns the current configured temperature setpoint in °C.
- ******************************************************************************/
+/***************** getSetPoint **************************************************/
 float getSetPoint()
 {
   return config.setPoint;
 }
 
 /***************** setSetPoint **************************************************
- * params:
- *   v: new temperature setpoint in °C
+ * params: v
+ * return: void
  * Description:
- * Updates the temperature setpoint and saves the configuration to EEPROM.
+ * Sets temperature setpoint (°C) and persists.
  ******************************************************************************/
 void setSetPoint(float v)
 {
-  config.setPoint = v;
+  config.setPoint = clampf(v, 5.0f, 35.0f);
   saveConfig();
 }
 
-/***************** getHysteresis ************************************************
- * Description:
- * Returns the current configured hysteresis in °C.
- ******************************************************************************/
+/***************** getHysteresis ************************************************/
 float getHysteresis()
 {
   return config.hysteresis;
 }
 
-/***************** setHysteresis ************************************************
- * params:
- *   v: new hysteresis value in °C
- * Description:
- * Updates the hysteresis value and saves the configuration to EEPROM.
- ******************************************************************************/
+/***************** setHysteresis ************************************************/
 void setHysteresis(float v)
 {
-  config.hysteresis = v;
+  config.hysteresis = clampf(v, 0.1f, 5.0f);
   saveConfig();
 }
 
-/***************** getBoostMinutes *********************************************
- * Description:
- * Returns the currently configured boost duration in minutes.
- ******************************************************************************/
+/***************** getBoostMinutes **********************************************/
 int getBoostMinutes()
 {
   return config.boostMinutes;
 }
 
-/***************** setBoostMinutes *********************************************
- * params:
- *   v: new boost duration in minutes
+/***************** setBoostMinutes **********************************************
+ * params: v
+ * return: void
  * Description:
- * Updates the boost duration and saves the configuration to EEPROM.
+ * Sets BOOST duration (minutes) and persists.
  ******************************************************************************/
 void setBoostMinutes(int v)
 {
+  if (v < 0) v = 0;
+  if (v > 240) v = 240;
   config.boostMinutes = v;
   saveConfig();
 }
+
+/***************** getBoostEndTime **********************************************/
+unsigned long getBoostEndTime()
+{
+  return config.boostEndMillis;
+}
+
+/***************** setBoostEndTime **********************************************
+ * params: t
+ * return: void
+ * Description:
+ * Sets BOOST end timestamp (millis, 0 = disabled) and persists.
+ ******************************************************************************/
+void setBoostEndTime(unsigned long t)
+{
+  config.boostEndMillis = t;
+  saveConfig();
+}
+
+/***************** getBaseTopic *************************************************
+ * params: none
+ * return: const char*
+ * Description:
+ * Returns the compile-time selected base topic / room label (e.g. "Wohnzimmer").
+ ******************************************************************************/
+const char* getBaseTopic()
+{
+  return BASE_TOPIC;
+}
+
+/***************** getHostLabel *************************************************
+ * params: none
+ * return: const char*
+ * Description:
+ * Returns the DNS-safe host label derived from the room (e.g. "wohnzimmer").
+ ******************************************************************************/
+const char* getHostLabel()
+{
+  return HOST_LABEL;
+}
+

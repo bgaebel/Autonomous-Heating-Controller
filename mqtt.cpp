@@ -19,17 +19,6 @@ static unsigned long nextReconnectDue = 0;
 static unsigned long reconnectDelayMs = 5000;  // start with 5s
 static const unsigned long reconnectDelayMaxMs = 120000; // cap at 2min
 
-static uint8_t lastLedState = 255; // invalid init
-
-static void setLedStateIfChanged(uint8_t s)
-{
-  if (lastLedState != s)
-  {
-    setLedState(s);
-    lastLedState = s;
-  }
-}
-
 /***************** mqttCallback *************************************************
  * Description:
  * Handles incoming MQTT messages.
@@ -70,13 +59,11 @@ bool mqttReconnect()
   Serial.print(MQTT_HOST);
   Serial.println(F(":1883 ..."));
 
-  setLedStateIfChanged(LED_MQTT_CONNECTING);
-
   String clientId = "HeatCtrl-" + String(ESP.getChipId(), HEX);
   if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASS))
   {
     Serial.println(F("[MQTT] Connected!"));
-    setLedStateIfChanged(LED_RUNNING);
+    ledSetMqttOk(true);
 
     String topic = String(BASE_TOPIC) + "/cmd";
     mqttClient.subscribe(topic.c_str());
@@ -88,40 +75,40 @@ bool mqttReconnect()
   {
     Serial.print(F("[MQTT] Connect failed, state="));
     Serial.println(mqttClient.state());
-    setLedStateIfChanged(LED_ERROR);
+    ledSetMqttOk(false);
     return false;
   }
 }
 
-/***************** mqttReconnectIfNeeded ****************************************
+/***************** ensureMQTT ***************************************************
  * Description:
  * Ensures MQTT connection is alive.
- * Tries reconnect every 10s if disconnected.
+ * Exponential backoff reconnect; LED overlays indicate status.
  ******************************************************************************/
-void mqttReconnectIfNeeded()
+void ensureMQTT()
 {
   if (!mqttClient.connected())
   {
+    // indicate MQTT problem while disconnected (unless WiFi overlay masks it)
     unsigned long now = millis();
     if (now >= nextReconnectDue)
     {
       if (mqttReconnect())
       {
-        // success → reset backoff
         reconnectDelayMs = 5000;
         nextReconnectDue = 0;
       }
       else
       {
-        // failure → exponential backoff (bis reconnectDelayMaxMs)
         reconnectDelayMs = min(reconnectDelayMs * 2, reconnectDelayMaxMs);
         nextReconnectDue = now + reconnectDelayMs;
-        Serial.printf("[MQTT] Next reconnect in %lu ms\n", reconnectDelayMs);
+        Serial.printf("[MQTT] Next reconnect in %lu s\n", reconnectDelayMs/1000);
       }
     }
   }
   else
   {
+    // connected – clear MQTT overlay, keep heartbeat
     mqttClient.loop();
   }
 }
@@ -199,3 +186,40 @@ void initMqtt()
   mqttClient.setCallback(mqttCallback);
   Serial.println(F("[MQTT] Initialized"));
 }
+
+/***************** mqttIsConnected *********************************************
+ * params: none
+ * return: bool
+ * Description:
+ * Returns whether the MQTT client is currently connected.
+ ******************************************************************************/
+bool mqttIsConnected()
+{
+  return mqttClient.connected();
+}
+
+/***************** mqttConnStateText ********************************************
+ * params: none
+ * return: const char*
+ * Description:
+ * Maps PubSubClient::state() to a human-readable short string.
+ ******************************************************************************/
+const char* mqttConnStateText()
+{
+  int s = mqttClient.state();
+  switch (s)
+  {
+    case MQTT_CONNECTED:               return "connected";
+    case MQTT_CONNECTION_TIMEOUT:      return "timeout";
+    case MQTT_CONNECTION_LOST:         return "lost";
+    case MQTT_CONNECT_FAILED:          return "connect-failed";
+    case MQTT_DISCONNECTED:            return "disconnected";
+    case MQTT_CONNECT_BAD_PROTOCOL:    return "bad-protocol";
+    case MQTT_CONNECT_BAD_CLIENT_ID:   return "bad-client-id";
+    case MQTT_CONNECT_UNAVAILABLE:     return "unavailable";
+    case MQTT_CONNECT_BAD_CREDENTIALS: return "bad-credentials";
+    case MQTT_CONNECT_UNAUTHORIZED:    return "unauthorized";
+    default:                           return "?";
+  }
+}
+
