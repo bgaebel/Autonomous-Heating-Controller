@@ -34,6 +34,10 @@
   #define HOST_LABEL "unknown-heizung"
 #endif
 
+#ifndef APP_VERSION
+#define APP_VERSION "1.0"
+#endif
+
 /***************** Hardware Pins ************************************************/
 #define RELAY_PIN D6
 #define I2C_SDA   D2
@@ -131,5 +135,6 @@ void  setBoostEndTime(unsigned long t);
 
 const char* getBaseTopic();
 const char* getHostLabel();
+const char* getFirmwareVersion();
 
 #endif // CONFIG_H
