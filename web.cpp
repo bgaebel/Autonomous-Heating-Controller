@@ -4,6 +4,8 @@
 #include "control.h"
 #include "sensor.h"
 #include "mqtt.h"
+#include "history.h"
+#include <stdlib.h>
 
 /***************** Module Globals **********************************************/
 ESP8266WebServer webServer(80);
@@ -29,19 +31,21 @@ static int clampInt(int v, int lo, int hi)
  * Renders status & configuration page, including current heater state (ON/OFF)
  * and the current room (Base-Topic). Sends UTF-8 so special chars render fine.
  ******************************************************************************/
+static void handleHistoryJson();
+
 static void renderIndex()
 {
   const float t = getLastTemperature();
   const bool heaterIsOn = digitalRead(RELAY_PIN);
 
   String html;
-  html.reserve(4096);
+  html.reserve(8192);
   html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
   html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   html += F("<title>Heating Controller &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
-  html += F("<style>body{font-family:sans-serif;margin:1rem} .grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center} .btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;text-decoration:none} input{padding:.4rem} .select-lg{font-size:1.1rem;padding:.55rem .9rem;min-width:12rem;height:2.3rem}</style>");
+  html += F("<style>body{font-family:sans-serif;margin:1rem} .grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center} .btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;text-decoration:none} input{padding:.4rem} .select-lg{font-size:1.1rem;padding:.55rem .9rem;min-width:12rem;height:2.3rem} .chart-card{margin-top:1.5rem} #histWrap{position:relative;max-width:100%;height:320px}</style>");
   html += F("</head><body>");
 
   // Header mit Raum/Topic
@@ -125,6 +129,9 @@ static void renderIndex()
   html += F("<div class='grid'><label>Start Boost</label><button class='btn' type='submit'>Start</button><span></span><span></span></div>");
   html += F("</form>");
 
+  html += F("<div class='chart-card'><h3>History (letzte 5 Tage)</h3><div id='histWrap'><canvas id='histChart'></canvas></div></div>");
+  html += F("<script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js' integrity='sha384-f4NBX7ZD0rGUNShUMpOWcZH/AsLiCFYI8a9kaI0s5momkGLumZ5qX6Ch12HaxJXJ' crossorigin='anonymous'></script>");
+  html += F("<script>(function(){const canvas=document.getElementById('histChart');if(!canvas){return;}fetch('/history.json?days=5').then(r=>r.json()).then(rows=>{if(!Array.isArray(rows)||!rows.length){const msg=document.createElement('p');msg.textContent='Keine Verlaufsdaten verfügbar.';canvas.parentNode.replaceWith(msg);return;}const formatTs=ts=>{const d=new Date(ts*1000);const pad=v=>String(v).padStart(2,'0');return pad(d.getDate())+'.'+pad(d.getMonth()+1)+' '+pad(d.getHours())+':'+pad(d.getMinutes());};const labels=rows.map(r=>formatTs(r.ts));const temps=rows.map(r=>r.t/100);const uppers=rows.map(r=>(r.sp+r.hy)/100);const lowers=rows.map(r=>(r.sp-r.hy)/100);const heaters=rows.map(r=>r.h);new Chart(canvas.getContext('2d'),{type:'line',data:{labels:labels,datasets:[{label:'Temperatur',data:temps,borderColor:'#d93025',backgroundColor:'rgba(217,48,37,0.1)',pointRadius:0,tension:0.1,fill:false},{label:'Oberer Grenzwert',data:uppers,borderColor:'#0b8043',borderDash:[6,6],pointRadius:0,tension:0.1,fill:false},{label:'Unterer Grenzwert',data:lowers,borderColor:'#1a73e8',borderDash:[6,6],pointRadius:0,tension:0.1,fill:false},{label:'Heizung',data:heaters,borderColor:'#fbbc04',backgroundColor:'rgba(251,188,4,0.2)',pointRadius:0,stepped:true,fill:true,yAxisID:'y1'}]},options:{maintainAspectRatio:false,interaction:{mode:'nearest',intersect:false},scales:{y:{title:{display:true,text:'°C'}},y1:{position:'right',min:-0.1,max:1.1,ticks:{callback:value=>value>=1?'An':'Aus'},grid:{drawOnChartArea:false}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:8}}},plugins:{legend:{position:'bottom'}}});}).catch(()=>{const msg=document.createElement('p');msg.textContent='Fehler beim Laden der Verlaufsdaten.';canvas.parentNode.replaceWith(msg);});})();</script>");
   html += F("</body></html>");
 
   // WICHTIG: UTF-8 senden, sonst gibt's â€“ o.ä.
@@ -207,6 +214,7 @@ void initWebServer()
   webServer.on("/config", HTTP_POST, handleConfigPost);
   webServer.on("/boost", HTTP_POST, handleBoostPost);
   webServer.on("/nudge", HTTP_GET, handleNudge);
+  webServer.on("/history.json", HTTP_GET, handleHistoryJson);
   webServer.begin();
 }
 
@@ -219,4 +227,76 @@ void initWebServer()
 void handleWebServer()
 {
   webServer.handleClient();
+}
+
+static void handleHistoryJson()
+{
+  const int daysParam = webServer.hasArg("days") ? webServer.arg("days").toInt() : 5;
+  const int days = clampInt(daysParam, 1, 14);
+
+  if (LOG_INTERVAL_MINUTES <= 0)
+  {
+    webServer.send(200, "application/json", "[]");
+    return;
+  }
+
+  const unsigned long intervalMin = (unsigned long)LOG_INTERVAL_MINUTES;
+  const unsigned long totalMinutes = (unsigned long)days * 24UL * 60UL;
+  size_t maxRecords = (totalMinutes + intervalMin - 1UL) / intervalMin;
+  if (maxRecords > HISTORY_CAPACITY_RECORDS)
+  {
+    maxRecords = HISTORY_CAPACITY_RECORDS;
+  }
+
+  if (maxRecords == 0)
+  {
+    webServer.send(200, "application/json", "[]");
+    return;
+  }
+
+  LogSample* buffer = (LogSample*)malloc(sizeof(LogSample) * maxRecords);
+  if (!buffer)
+  {
+    webServer.send(500, "application/json", "[]");
+    return;
+  }
+
+  size_t count = 0;
+  readHistoryTail(maxRecords, buffer, &count);
+
+  if (count == 0)
+  {
+    free(buffer);
+    webServer.send(200, "application/json", "[]");
+    return;
+  }
+
+  String json;
+  json.reserve(count * 40 + 16);
+  json += '[';
+  for (size_t i = 0; i < count; ++i)
+  {
+    if (i > 0)
+    {
+      json += ',';
+    }
+
+    const LogSample& s = buffer[i];
+    json += '{';
+    json += F("\"ts\":");
+    json += s.tsSec;
+    json += F(",\"t\":");
+    json += s.tempCenti;
+    json += F(",\"sp\":");
+    json += s.setPointCenti;
+    json += F(",\"hy\":");
+    json += s.hysteresisCenti;
+    json += F(",\"h\":");
+    json += (s.flags & 0x01) ? '1' : '0';
+    json += '}';
+  }
+  json += ']';
+
+  free(buffer);
+  webServer.send(200, "application/json", json);
 }
