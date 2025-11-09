@@ -51,6 +51,9 @@ static void renderIndex()
   html += F("<div>Host: ");
   html += getHostLabel();
   html += F(".local</div>");
+  html += F("<div>Version: ");
+  html += getFirmwareVersion();
+  html += F("</div>");
 
   // Einzige Statuszeile
   html += F("<div>Status: Mode=");
