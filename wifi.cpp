@@ -1,7 +1,6 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include "wifi.h"
-#include "led.h"
 #include "config.h"
 #include "secrets.h"
 #include "ota.h"
@@ -103,12 +102,10 @@ void ensureWifi()
       initOta();
       Serial.print(F("[WIFI] Connected! IP: "));
       Serial.println(WiFi.localIP());
-      ledSetWifiOk(true);
     }
     else
     {
       Serial.println(F("[WIFI] Connection failed! Will retry later."));
-      ledSetWifiOk(false);
     }
   }
 }
@@ -140,11 +137,9 @@ void initWifi()
     initOta();
     Serial.print(F("[WIFI] Connected! IP: "));
     Serial.println(WiFi.localIP());
-    ledSetWifiOk(true);
   }
   else
   {
     Serial.println(F("[WIFI] Failed to connect. Check credentials."));
-    ledSetWifiOk(false);
   }
 }

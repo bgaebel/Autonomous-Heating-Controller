@@ -5,6 +5,8 @@
 #include <EEPROM.h>
 #include "control.h"
 
+#define APP_VERSION "1.1"
+
 /***************** BaseTopic Selection ******************************************
  * Select ONE room by uncommenting it. Used to generate MQTT base topic.
  ******************************************************************************/
