@@ -17,7 +17,7 @@ struct HistoryHeader
 };
 
 static const uint32_t HIST_MAGIC   = 0x48495354UL; // "HIST"
-static const uint16_t HIST_VERSION = 1;
+static const uint16_t HIST_VERSION = 4;
 
 static File           histFile;
 static HistoryHeader  hdr;
@@ -172,6 +172,18 @@ bool appendHistory(const LogSample& s)
   return true;
 }
 
+bool appendHistory(uint32_t tsSec, int16_t tempCenti, bool heaterOn)
+{
+  LogSample s;
+  s.tsSec           = tsSec;
+  s.tempCenti       = tempCenti;
+  s.setPointCenti   = (int16_t)roundf(getSetPoint() * 100.0f);
+  s.hysteresisCenti = (int16_t)roundf(getHysteresis() * 100.0f);
+  s.flags           = heaterOn ? 0x01 : 0x00;
+  s.rsv             = 0;
+  return appendHistory(s);
+}
+
 /***************** readHistoryTail *********************************************
  * params: maxOut, outBuf, outCount
  * return: size_t
@@ -236,12 +248,18 @@ void handleHistory()
     LogSample s;
     s.tsSec     = getEpochOrUptimeSec();
     s.tempCenti = (int16_t)roundf(tC * 100.0f);
-    s.flags     = (isHeaterOn() ? 0x01 : 0x00);
-    s.rsv       = 0;
+    s.setPointCenti   = (int16_t)roundf(getSetPoint() * 100.0f);
+    s.hysteresisCenti = (int16_t)roundf(getHysteresis() * 100.0f);
+    s.flags           = (isHeaterOn() ? 0x01 : 0x00);
+    s.rsv             = 0;
 
     if (!appendHistory(s))
     {
       Serial.println(F("[HIST] append failed"));
+    }
+    else
+    {
+      Serial.println(F("[HIST] append succeded"));
     }
   }
 

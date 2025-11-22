@@ -25,16 +25,20 @@
  * params: n/a
  * return: n/a
  * Description:
- * Compact, fixed-size record: 8 bytes total.
- * - tsSec     : uint32_t epoch seconds (UTC)
- * - tempCenti : int16_t  temperature * 100 (°C * 100)
- * - flags     : bit0 = heaterOn (1=ON), bit1..7 reserved
- * - rsv       : reserved for alignment/future use
+ * Compact, fixed-size record: 12 bytes total.
+ * - tsSec           : uint32_t epoch seconds (UTC)
+ * - tempCenti       : int16_t  temperature * 100 (°C * 100)
+ * - setPointCenti   : int16_t  set point  * 100 (°C * 100)
+ * - hysteresisCenti : int16_t  hysteresis * 100 (°C * 100)
+ * - flags           : bit0 = heaterOn (1=ON), bit1..7 reserved
+ * - rsv             : reserved for alignment/future use
  ******************************************************************************/
 struct LogSample
 {
   uint32_t tsSec;
   int16_t  tempCenti;
+  int16_t  setPointCenti;
+  int16_t  hysteresisCenti;
   uint8_t  flags;
   uint8_t  rsv;
 };
@@ -60,7 +64,8 @@ void handleHistory();
  * params: tsSec, tempCenti, heaterOn
  * return: bool
  * Description:
- * Appends a single LogSample into the ring buffer immediately.
+ * Appends a single LogSample into the ring buffer immediately using the
+ * current set point and hysteresis values for threshold reconstruction.
  ******************************************************************************/
 bool appendHistory(uint32_t tsSec, int16_t tempCenti, bool heaterOn);
 
