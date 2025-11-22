@@ -17,7 +17,7 @@ struct HistoryHeader
 };
 
 static const uint32_t HIST_MAGIC   = 0x48495354UL; // "HIST"
-static const uint16_t HIST_VERSION = 2;
+static const uint16_t HIST_VERSION = 4;
 
 static File           histFile;
 static HistoryHeader  hdr;
@@ -256,6 +256,10 @@ void handleHistory()
     if (!appendHistory(s))
     {
       Serial.println(F("[HIST] append failed"));
+    }
+    else
+    {
+      Serial.println(F("[HIST] append succeded"));
     }
   }
 
