@@ -583,9 +583,60 @@ static void renderIndex()
     tableWrap.innerHTML = html;
   }
 
+    function tryParseHistory(text)
+  {
+    // 1. Normaler JSON-Parse-Versuch
+    try
+    {
+      return JSON.parse(text);
+    }
+    catch (e)
+    {
+      // 2. Reparatur-Versuch für abgeschnittene Arrays
+      //    Beispiel: [{"ts":...,"h":0},{"ts":...,"h":0
+      var start = text.indexOf('[');
+      var endObj = text.lastIndexOf('}');
+
+      if (start === -1 || endObj === -1 || endObj <= start)
+      {
+        return null;
+      }
+
+      // Nur den Teil von der ersten '[' bis zur letzten '}' nehmen
+      var trimmed = text.slice(start, endObj + 1);
+
+      // Wenn kein '[' am Anfang -> einklammern
+      if (trimmed.charAt(0) !== '[')
+      {
+        trimmed = '[' + trimmed + ']';
+      }
+      else
+      {
+        // Array war nur hinten offen -> einfach ']' anhängen
+        trimmed = trimmed + ']';
+      }
+
+      try
+      {
+        return JSON.parse(trimmed);
+      }
+      catch (e2)
+      {
+        return null;
+      }
+    }
+  }
+
   fetch('/history.json?days=1')
-    .then(function(r){ return r.json(); })
-    .then(function(rows){
+    .then(function(r)
+    {
+      // Rohtext holen, nicht direkt r.json()
+      return r.text();
+    })
+    .then(function(text)
+    {
+      var rows = tryParseHistory(text);
+
       if (!rows || !rows.length)
       {
         clearSvg();
@@ -598,6 +649,7 @@ static void renderIndex()
         return;
       }
 
+      // Ab hier alles wie vorher: drawChart(rows), Events bauen, Tabelle rendern
       drawChart(rows);
 
       var events = [];
@@ -635,7 +687,8 @@ static void renderIndex()
 
       renderTableFromEvents(events);
     })
-    .catch(function(err){
+    .catch(function(err)
+    {
       clearSvg();
       var txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       txt.setAttribute('x', '10');

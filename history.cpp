@@ -26,24 +26,30 @@ static HistoryHeader  hdr;
  * params: none
  * return: bool
  * Description:
- * Öffnet vorhandene History-Datei oder erstellt sie inkl. Header und Größe.
+ * Always recreates the history file on startup. Old data is discarded.
+ * Creates a fresh file with header and full allocated size.
  ******************************************************************************/
 static bool fileOpenOrCreate()
 {
-  if (!LittleFS.begin())
-  {
-    Serial.println(F("[HIST] LittleFS mount failed"));
-    return false;
-  }
+    if (!LittleFS.begin())
+    {
+        Serial.println(F("[HIST] LittleFS mount failed"));
+        return false;
+    }
 
-  if (!LittleFS.exists(HISTORY_FILE_PATH))
-  {
-    // Neu anlegen
+    // Always delete on startup
+    if (LittleFS.exists(HISTORY_FILE_PATH))
+    {
+        LittleFS.remove(HISTORY_FILE_PATH);
+        Serial.println(F("[HIST] Removed old history file"));
+    }
+
+    // Create new file
     histFile = LittleFS.open(HISTORY_FILE_PATH, "w+");
     if (!histFile)
     {
-      Serial.println(F("[HIST] Create file failed"));
-      return false;
+        Serial.println(F("[HIST] Create file failed"));
+        return false;
     }
 
     hdr.magic    = HIST_MAGIC;
@@ -54,64 +60,22 @@ static bool fileOpenOrCreate()
     hdr.count    = 0;
     hdr.reserved = 0;
 
-    // Header schreiben
+    // Write header
     histFile.seek(0, SeekSet);
     histFile.write((const uint8_t*)&hdr, sizeof(hdr));
 
-    // Datei auf Zielgröße bringen (Header + capacity*recSize)
+    // Pre-allocate entire file (header + data)
     const size_t total = sizeof(hdr) + (size_t)hdr.capacity * hdr.recSize;
     histFile.seek(total - 1, SeekSet);
     histFile.write((const uint8_t*)"\0", 1);
     histFile.flush();
 
-    Serial.print(F("[HIST] Created "));
+    Serial.print(F("[HIST] Created fresh "));
     Serial.print(HISTORY_FILE_PATH);
     Serial.print(F(" capacity="));
     Serial.println(hdr.capacity);
+
     return true;
-  }
-
-  // Bestehende Datei öffnen
-  histFile = LittleFS.open(HISTORY_FILE_PATH, "r+");
-  if (!histFile)
-  {
-    Serial.println(F("[HIST] Open file failed"));
-    return false;
-  }
-
-  // Header lesen/prüfen
-  histFile.seek(0, SeekSet);
-  if (histFile.read((uint8_t*)&hdr, sizeof(hdr)) != sizeof(hdr))
-  {
-    Serial.println(F("[HIST] Header read failed"));
-    LittleFS.remove(HISTORY_FILE_PATH);
-    return fileOpenOrCreate();
-  }
-
-  if (hdr.magic != HIST_MAGIC || hdr.version != HIST_VERSION || hdr.recSize != sizeof(LogSample))
-  {
-    Serial.println(F("[HIST] Header invalid → recreate"));
-    LittleFS.remove(HISTORY_FILE_PATH);
-    return fileOpenOrCreate();
-  }
-
-  if (hdr.capacity != HISTORY_CAPACITY_RECORDS)
-  {
-    Serial.println(F("[HIST] Capacity mismatch → recreate"));
-    LittleFS.remove(HISTORY_FILE_PATH);
-    return fileOpenOrCreate();
-  }
-
-  Serial.print(F("[HIST] Opened "));
-  Serial.print(HISTORY_FILE_PATH);
-  Serial.print(F(" capacity="));
-  Serial.print(hdr.capacity);
-  Serial.print(F(" head="));
-  Serial.print(hdr.head);
-  Serial.print(F(" count="));
-  Serial.println(hdr.count);
-
-  return true;
 }
 
 /***************** recOffset ****************************************************

@@ -5,16 +5,16 @@
 #include <EEPROM.h>
 #include "control.h"
 
-#define APP_VERSION "1.4"
+#define APP_VERSION "1.5"
 
 /***************** BaseTopic Selection ******************************************
  * Select ONE room by uncommenting it. Used to generate MQTT base topic.
  ******************************************************************************/
-//#define ROOM_WOHNZIMMER
-// #define ROOM_SCHLAFZIMMER
- #define ROOM_KUECHE
-// #define ROOM_KL_KINDERZIMMER
-// #define ROOM_GR_KINDERZIMMER
+// #define ROOM_WOHNZIMMER  //-
+// #define ROOM_SCHLAFZIMMER  //-
+// #define ROOM_KUECHE  //-
+ #define ROOM_KL_KINDERZIMMER
+// #define ROOM_GR_KINDERZIMMER //-
 
 #ifdef ROOM_WOHNZIMMER
   #define BASE_TOPIC "Wohnzimmer"
@@ -90,7 +90,7 @@ extern Config config;
 
 // ---------- History Logging ----------
 #ifndef LOG_INTERVAL_MINUTES
-#define LOG_INTERVAL_MINUTES 1   // <- hier Stellrad (X Minuten)
+#define LOG_INTERVAL_MINUTES 5   // <- hier Stellrad (X Minuten)
 #endif
 
 #ifndef HISTORY_FILE_PATH
