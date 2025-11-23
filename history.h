@@ -10,7 +10,7 @@
  * Tuning knobs for sampling and storage. Adjust to your FS size.
  ******************************************************************************/
 #ifndef HISTORY_SAMPLE_PERIOD_MIN
-#define HISTORY_SAMPLE_PERIOD_MIN 5          // <- alle X Minuten loggen
+#define HISTORY_SAMPLE_PERIOD_MIN 1          // <- alle X Minuten loggen
 #endif
 
 #ifndef HISTORY_FILE_BYTES
