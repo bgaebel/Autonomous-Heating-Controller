@@ -6,7 +6,6 @@
 #include "config.h"
 #include "secrets.h"
 #include "control.h"
-#include "led.h"
 #include "sensor.h"
 
 WiFiClient espClient;
@@ -63,7 +62,6 @@ bool mqttReconnect()
   if (mqttClient.connect(clientId.c_str(), MQTT_USER, MQTT_PASS))
   {
     Serial.println(F("[MQTT] Connected!"));
-    ledSetMqttOk(true);
 
     String topic = String(BASE_TOPIC) + "/cmd";
     mqttClient.subscribe(topic.c_str());
@@ -75,7 +73,6 @@ bool mqttReconnect()
   {
     Serial.print(F("[MQTT] Connect failed, state="));
     Serial.println(mqttClient.state());
-    ledSetMqttOk(false);
     return false;
   }
 }
