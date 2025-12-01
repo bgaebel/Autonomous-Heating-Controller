@@ -146,3 +146,9 @@ const char* getHostLabel()
   return HOST_LABEL;
 }
 
+/***************** getFirmwareVersion *******************************************/
+const char* getFirmwareVersion()
+{
+  return APP_VERSION;
+}
+
