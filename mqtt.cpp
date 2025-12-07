@@ -31,7 +31,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length)
     message += (char)payload[i];
   }
 
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
   DeserializationError error = deserializeJson(doc, message);
   if (error)
   {
@@ -40,7 +40,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length)
     return;
   }
 
-  if (doc["setPoint"].is<float>())     { setSetPoint(doc["setPoint"]); }
+  if (doc["setPoint"].is<float>())     { setDaySetPoint(doc["setPoint"]); setNightSetPoint(doc["setPoint"]); }
+  if (doc["daySetPoint"].is<float>())  { setDaySetPoint(doc["daySetPoint"]); }
+  if (doc["nightSetPoint"].is<float>()){ setNightSetPoint(doc["nightSetPoint"]); }
+  if (doc["dayStart"].is<int>())       { setDayStartMinutes(doc["dayStart"]); }
+  if (doc["nightStart"].is<int>())     { setNightStartMinutes(doc["nightStart"]); }
   if (doc["hysteresis"].is<float>())   { setHysteresis(doc["hysteresis"]); }
   if (doc["boostMinutes"].is<int>())   { setBoostMinutes(doc["boostMinutes"]); }
   if (doc["mode"].is<int>())           { setControlMode((ControlMode)doc["mode"]); }
@@ -152,12 +156,16 @@ void publishState()
     return;
   }
 
-  StaticJsonDocument<256> doc;
-  doc["setPoint"]     = getSetPoint();
-  doc["hysteresis"]   = getHysteresis();
-  doc["boostMinutes"] = getBoostMinutes();
-  doc["mode"]         = modeToStr(getControlMode());
-  doc["state"]        = stateToStr(getControlState());
+  StaticJsonDocument<384> doc;
+  doc["setPoint"]      = getSetPoint();
+  doc["daySetPoint"]   = getDaySetPoint();
+  doc["nightSetPoint"] = getNightSetPoint();
+  doc["dayStart"]      = getDayStartMinutes();
+  doc["nightStart"]    = getNightStartMinutes();
+  doc["hysteresis"]    = getHysteresis();
+  doc["boostMinutes"]  = getBoostMinutes();
+  doc["mode"]          = modeToStr(getControlMode());
+  doc["state"]         = stateToStr(getControlState());
 
   String payload;
   serializeJson(doc, payload);
