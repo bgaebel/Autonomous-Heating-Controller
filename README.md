@@ -88,6 +88,8 @@ void loop() {
 
 ## Web UI
 
+<img width="778" height="796" alt="image" src="https://github.com/user-attachments/assets/54541f14-a06c-4b66-af47-933e44f2ba65" />
+
 Shows live state + config:
 
 - Room (`BASE_TOPIC`)
