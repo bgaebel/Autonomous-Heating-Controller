@@ -1,5 +1,6 @@
 #include "config.h"
 #include <string.h>
+#include <time.h>
 
 Config config;
 
@@ -34,8 +35,11 @@ void loadConfig()
   }
 
   // Range-sanitize to avoid nonsense values
-  tmp.setPoint    = clampf(tmp.setPoint, 5.0f, 35.0f);
-  tmp.hysteresis  = clampf(tmp.hysteresis, 0.1f, 5.0f);
+  tmp.daySetPoint   = clampf(tmp.daySetPoint, 5.0f, 35.0f);
+  tmp.nightSetPoint = clampf(tmp.nightSetPoint, 5.0f, 35.0f);
+  tmp.dayStartMin   = (uint16_t)max(0, min(1439, (int)tmp.dayStartMin));
+  tmp.nightStartMin = (uint16_t)max(0, min(1439, (int)tmp.nightStartMin));
+  tmp.hysteresis    = clampf(tmp.hysteresis, 0.1f, 5.0f);
   if (tmp.boostMinutes < 0)   tmp.boostMinutes = 0;
   if (tmp.boostMinutes > 240) tmp.boostMinutes = 240;
 
@@ -58,18 +62,94 @@ void saveConfig()
 /***************** getSetPoint **************************************************/
 float getSetPoint()
 {
-  return config.setPoint;
+  return isDayScheduleActive() ? config.daySetPoint - getHysteresis() : config.nightSetPoint - getHysteresis();
 }
 
-/***************** setSetPoint **************************************************
- * params: v
- * return: void
- * Description:
- * Sets temperature setpoint (°C) and persists.
- ******************************************************************************/
-void setSetPoint(float v)
+/***************** getDaySetPoint **********************************************/
+float getDaySetPoint()
 {
-  config.setPoint = clampf(v, 5.0f, 35.0f);
+  return config.daySetPoint;
+}
+
+/***************** getNightSetPoint ********************************************/
+float getNightSetPoint()
+{
+  return config.nightSetPoint;
+}
+
+/***************** setDaySetPoint **********************************************/
+void setDaySetPoint(float v)
+{
+  config.daySetPoint = clampf(v, 5.0f, 35.0f);
+  saveConfig();
+}
+
+/***************** setNightSetPoint ********************************************/
+void setNightSetPoint(float v)
+{
+  config.nightSetPoint = clampf(v, 5.0f, 35.0f);
+  saveConfig();
+}
+
+/***************** schedule helpers ********************************************/
+static int clampMinutesOfDay(int v)
+{
+  if (v < 0) return 0;
+  if (v > 1439) return 1439;
+  return v;
+}
+
+static int minutesOfDay()
+{
+  time_t now;
+  time(&now);
+  struct tm *t = localtime(&now);
+  if (!t)
+  {
+    return 0;
+  }
+  return t->tm_hour * 60 + t->tm_min;
+}
+
+bool isDayScheduleActive()
+{
+  const int dStart = config.dayStartMin;
+  const int nStart = config.nightStartMin;
+  const int nowMin = minutesOfDay();
+
+  if (dStart == nStart)
+  {
+    return true; // Degenerates to "immer Tag"
+  }
+
+  if (dStart < nStart)
+  {
+    return (nowMin >= dStart) && (nowMin < nStart);
+  }
+
+  // Tag beginnt z.B. 22:00 und läuft über Mitternacht
+  return (nowMin >= dStart) || (nowMin < nStart);
+}
+
+int getDayStartMinutes()
+{
+  return config.dayStartMin;
+}
+
+int getNightStartMinutes()
+{
+  return config.nightStartMin;
+}
+
+void setDayStartMinutes(int v)
+{
+  config.dayStartMin = (uint16_t)clampMinutesOfDay(v);
+  saveConfig();
+}
+
+void setNightStartMinutes(int v)
+{
+  config.nightStartMin = (uint16_t)clampMinutesOfDay(v);
   saveConfig();
 }
 

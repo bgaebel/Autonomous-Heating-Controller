@@ -37,6 +37,29 @@ static int clampInt(int v, int lo, int hi)
   return v;
 }
 
+static int parseTimeMinutes(const String &val)
+{
+  int h = 0;
+  int m = 0;
+
+  int colon = val.indexOf(':');
+  if (colon >= 0)
+  {
+    h = val.substring(0, colon).toInt();
+    m = val.substring(colon + 1).toInt();
+  }
+  else
+  {
+    h = val.toInt();
+  }
+
+  if (h < 0) h = 0;
+  if (h > 23) h = 23;
+  if (m < 0) m = 0;
+  if (m > 59) m = 59;
+  return h * 60 + m;
+}
+
 /***************** handleHistoryJson ********************************************
  * params: none
  * return: void
@@ -65,34 +88,7 @@ static void renderIndex()
   html += F("<title>Heating Controller &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
-  html += F("<style>"
-            "body{font-family:sans-serif;margin:1rem}"
-            ".grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center}"
-            ".btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;text-decoration:none}"
-            "input{padding:.4rem}"
-            ".select-lg{font-size:1.1rem;padding:.55rem .9rem;min-width:12rem;height:2.3rem}"
-            ".chart-card{margin-top:1.5rem}"
-            "#histWrap{position:relative;max-width:100%;height:320px}"
-            "#histWrap svg{width:100%;height:100%}"
-            ".badge{background:#1a73e8;color:#fff;border-radius:.4rem;padding:.15rem .45rem;font-size:.85rem;margin-left:.5rem}"
-            ".hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}"
-            ".view-toggle{display:flex;gap:.5rem}"
-            ".tab-btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;background:#f6f6f6;cursor:pointer}"
-            ".tab-btn.active{background:#1a73e8;color:#fff;border-color:#1a73e8}"
-            ".hist-table{width:100%;border-collapse:collapse;margin-top:.5rem}"
-            ".hist-table th,.hist-table td{border:1px solid #ddd;padding:.4rem;text-align:left;font-size:.95rem}"
-            ".hist-table th{background:#f6f6f6}"
-            "#histSvg .temp-line{stroke:#d93025;fill:none;stroke-width:1.5}"
-            "#histSvg .upper-line{stroke:#0b8043;fill:none;stroke-width:1;stroke-dasharray:4,4}"
-            "#histSvg .lower-line{stroke:#1a73e8;fill:none;stroke-width:1;stroke-dasharray:4,4}"
-            "#histSvg .axis{stroke:#999;stroke-width:1;fill:none}"
-            "#histSvg .grid-line{stroke:#e0e0e0;stroke-width:1;fill:none}"
-            "#histSvg .bg{fill:#fafafa}"
-            "#histSvg .axis-label{fill:#333;font-size:10px;font-family:sans-serif}"
-            "#histSvg .hover-line{stroke:#555;stroke-width:1;stroke-dasharray:2,2}"
-            "#histSvg .hover-dot{fill:#d93025}"
-            "#histSvg .hover-text{fill:#000;font-size:11px;font-family:sans-serif}"
-            "</style>");
+  html += F("<style>:root{--bg:#f7f8fa;--card:#ffffff;--text:#0f172a;--muted:#6b7280;--accent:#2563eb;--accent-soft:rgba(37,99,235,.08);--success:#16a34a;--danger:#ef4444;--border:#e5e7eb;--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;--heat-band:rgba(239,68,68,0.16);--shadow-soft:0 4px 12px rgba(15,23,42,.18);}[data-theme='dark']{--bg:#020617;--card:#020617;--text:#e5e7eb;--muted:#94a3b8;--accent:#60a5fa;--accent-soft:rgba(96,165,250,.1);--success:#22c55e;--danger:#f97373;--border:#1f2937;--temp-line:#fdba74;--upper-line:#4ade80;--lower-line:#93c5fd;--phase-line:#c4b5fd;--heat-band:rgba(248,113,113,0.18);--shadow-soft:0 8px 24px rgba(0,0,0,.65);}body{font-family:system-ui,sans-serif;margin:1rem;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease;}h2{margin-bottom:.2rem;}.card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;box-shadow:var(--shadow-soft);transition:box-shadow .18s ease,transform .12s ease;}.card:hover{transform:translateY(-1px);} .grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}.btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.6rem;text-decoration:none;background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:.25rem;transition:background .16s ease,transform .08s ease,box-shadow .16s ease,border-color .16s ease;}.btn:hover{background:var(--accent);color:#fff;transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.35);border-color:var(--accent);}input,select,button{font-family:inherit;background:var(--card);color:var(--text);}input{padding:.45rem;border:1px solid var(--border);border-radius:.5rem;}input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft);}.select-lg{font-size:1.05rem;padding:.5rem .8rem;min-width:12rem;height:2.2rem;border:1px solid var(--border);border-radius:.6rem;}.badge{background:var(--accent);color:#fff;border-radius:.5rem;padding:.2rem .5rem;font-size:.8rem;margin-left:.4rem;}.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;}.label-small{color:var(--muted);font-size:.9rem;}.hist-table{width:100%;border-collapse:collapse;margin-top:.5rem;}.hist-table th,.hist-table td{border:1px solid var(--border);padding:.4rem;text-align:left;font-size:.95rem;}.hist-table th{background:var(--accent);color:#fff;}.hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;}.view-toggle{display:flex;gap:.5rem;}.tab-btn{padding:.4rem .8rem;border-radius:.6rem;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease;}.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}.chart-card{margin-top:1.5rem;}#histWrap{position:relative;max-width:100%;height:320px;}#histWrap svg{width:100%;height:100%;}#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.6;}#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.9;}#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}#histSvg .grid-line{stroke:rgba(148,163,184,.45);stroke-width:1;fill:none;}#histSvg .bg{fill:var(--bg);}#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}#histSvg .hover-dot{fill:var(--danger);}#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}.heat-on-band{fill:var(--heat-band);}@media(max-width:680px){body{margin:.6rem;}.grid{grid-template-columns:1fr 1fr;}.grid label{font-size:.9rem;}.btn{width:100%;justify-content:center;}}</style>");
   html += F("</head><body>");
 
   // Header
@@ -101,12 +97,14 @@ static void renderIndex()
   html += F(" <span class='badge'>v");
   html += APP_VERSION;
   html += F("</span></h2>");
-  html += F("<div>Host: ");
+  html += F("<div style='display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.4rem 0 1rem 0;'>Host: ");
   html += getHostLabel();
-  html += F(".local</div>");
+  html += F(".local");
+  html += F("<button class='btn' type='button' onclick='toggleTheme()'>🌙 Dark / Light</button>");
+  html += F("</div>");
 
   // Statuszeile
-  html += F("<div>Status: Mode=");
+  html += F("<div class='card' style='margin-bottom:1rem'>Status: Mode=");
   html += modeToStr(getControlMode());
   html += F(" | Heater=");
   html += (heaterIsOn ? "ON" : "OFF");
@@ -124,19 +122,66 @@ static void renderIndex()
     html += mqttConnStateText();
     html += F(")");
   }
-  html += F("</div><hr>");
+  html += F("</div>");
 
-  html += F("<form method='POST' action='/config'>");
+  auto fmtTime = [](int minutes)
+  {
+    int h = minutes / 60;
+    int m = minutes % 60;
+    char buf[6];
+    snprintf(buf, sizeof(buf), "%02d:%02d", h, m);
+    return String(buf);
+  };
 
-  // Setpoint
-  html += F("<div class='grid'><label>Setpoint (°C)</label>"
-            "<input name='setPoint' type='number' step='0.1' min='5' max='35' value='");
+  html += F("<div class='card'>");
+  html += F("<p><div class='label-small'>Aktuelle Temperatur</div>");
+  html += F("<div class='label-lg'>");
+  html += (isnan(t) ? String("NaN") : String(t, 1));
+  html += F(" &deg;C</div></p>");
+
+  html += F("<p><div class='label-small'>Heizung Einschalttemperatur</div>");
+  html += F("<div class='label-lg'>");
   html += String(getSetPoint(), 1);
+  html += F(" °C <span class='badge'>");
+  html += (isDayScheduleActive() ? "Tag" : "Nacht");
+  html += F("</span></div></p></div>");
+
+  html += F("<div class='split'>");
+
+  // Tagesbereich
+  html += F("<div class='card'><h3>Tag</h3>");
+  html += F("<div class='grid'><label>Soll (°C)</label>"
+            "<input name='daySetPoint' type='number' step='0.1' min='5' max='35' value='");
+  html += String(getDaySetPoint(), 1);
   html += F("'>"
-            "<a class='btn' href='/nudge?field=setPoint&delta=-0.5'>-</a>"
-            "<a class='btn' href='/nudge?field=setPoint&delta=0.5'>+</a></div>");
+            "<a class='btn' href='/nudge?field=daySetPoint&delta=-0.5'>-</a>"
+            "<a class='btn' href='/nudge?field=daySetPoint&delta=0.5'>+</a></div>");
+  html += F("<div class='grid'><label>Beginn</label>"
+            "<input name='dayStart' type='time' step='300' value='");
+  html += fmtTime(getDayStartMinutes());
+  html += F("'>"
+            "<span></span><span></span></div>");
+  html += F("</div>");
+
+  // Nachtbereich
+  html += F("<div class='card'><h3>Nacht</h3>");
+  html += F("<div class='grid'><label>Soll (°C)</label>"
+            "<input name='nightSetPoint' type='number' step='0.1' min='5' max='35' value='");
+  html += String(getNightSetPoint(), 1);
+  html += F("'>"
+            "<a class='btn' href='/nudge?field=nightSetPoint&delta=-0.5'>-</a>"
+            "<a class='btn' href='/nudge?field=nightSetPoint&delta=0.5'>+</a></div>");
+  html += F("<div class='grid'><label>Beginn</label>"
+            "<input name='nightStart' type='time' step='300' value='");
+  html += fmtTime(getNightStartMinutes());
+  html += F("'>"
+            "<span></span><span></span></div>");
+  html += F("</div>");
+
+  html += F("</div>");  // close split-div
 
   // Hysteresis
+  html += F("<div class='card'>");
   html += F("<div class='grid'><label>Hysteresis (°C)</label>"
             "<input name='hysteresis' type='number' step='0.1' min='0.1' max='5' value='");
   html += String(getHysteresis(), 1);
@@ -152,36 +197,7 @@ static void renderIndex()
             "<a class='btn' href='/nudge?field=boostMinutes&delta=-5'>-</a>"
             "<a class='btn' href='/nudge?field=boostMinutes&delta=5'>+</a></div>");
 
-  // Mode select
-  html += F("<div class='grid'><label>Mode</label><select name='mode' class='select-lg'>");
-  ControlMode m = getControlMode();
-  html += F("<option value='0'");
-  if (m == MODE_AUTO)
-  {
-    html += F(" selected");
-  }
-  html += F(">AUTO</option>");
-  html += F("<option value='1'");
-  if (m == MODE_OFF)
-  {
-    html += F(" selected");
-  }
-  html += F(">OFF</option>");
-  html += F("<option value='2'");
-  if (m == MODE_BOOST)
-  {
-    html += F(" selected");
-  }
-  html += F(">BOOST</option>");
-  html += F("</select><span></span><span></span></div>");
-
-  html += F("<div class='grid'><span></span>"
-            "<button class='btn' type='submit'>Save</button>"
-            "<span></span><span></span></div>");
-  html += F("</form>");
-
   // Boost control
-  html += F("<h3>Boost</h3>");
   if (getControlMode() == MODE_BOOST)
   {
     unsigned long remaining = 0;
@@ -195,10 +211,11 @@ static void renderIndex()
     html += F(" min remaining</p>");
   }
   html += F("<form method='POST' action='/boost'>");
-  html += F("<div class='grid'><label>Start Boost</label>"
+  html += F("<div class='grid'><label>Boost</label>"
             "<button class='btn' type='submit'>Start</button>"
             "<span></span><span></span></div>");
   html += F("</form>");
+  html += F("</div>");  // close card
 
   // History-Card (24h)
   html += F("<div class='chart-card'>"
@@ -217,6 +234,15 @@ static void renderIndex()
 
   // JS als Raw-String, damit kein Quote-Chaos
   html += F("<script>");
+  html += F("const schedCfg={dayStart:");
+  html += String(getDayStartMinutes());
+  html += F(",nightStart:");
+  html += String(getNightStartMinutes());
+  html += F(",daySet:");
+  html += String(getDaySetPoint(), 1);
+  html += F(",nightSet:");
+  html += String(getNightSetPoint(), 1);
+  html += F("};\n");
   html += R"JS(
 (function(){
   var svg = document.getElementById('histSvg');
@@ -318,6 +344,7 @@ static void renderIndex()
     var uppers = [];
     var lowers = [];
     var tsList = [];
+    var onList = [];
 
     for (var i = 0; i < rows.length; i++)
     {
@@ -325,11 +352,13 @@ static void renderIndex()
       var tVal = Number(r.t) || 0;
       var spVal = Number(r.sp) || 0;
       var hyVal = Number(r.hy) || 0;
+      var on = r.h ? true : false;
 
       temps.push(tVal / 100.0);
       uppers.push((spVal + hyVal) / 100.0);
       lowers.push((spVal - hyVal) / 100.0);
       tsList.push(Number(r.ts) || 0);
+      onList.push(on);
     }
 
     var allVals = temps.concat(uppers).concat(lowers);
@@ -347,14 +376,18 @@ static void renderIndex()
     }
     var vSpan = maxV - minV;
 
-    function xFor(idx)
+    var minTs = tsList[0];
+    var maxTs = tsList[tsList.length - 1];
+    if (maxTs === minTs)
     {
-      if (rows.length === 1)
-      {
-        return padL + (width - padL - padR) / 2;
-      }
-      var f = idx / (rows.length - 1);
-      return padL + f * (width - padL - padR);
+      maxTs = minTs + 60;
+    }
+    var tsSpan = maxTs - minTs;
+
+    function xForTs(ts)
+    {
+      var rel = (ts - minTs) / tsSpan;
+      return padL + rel * (width - padL - padR);
     }
 
     function yFor(val)
@@ -371,6 +404,47 @@ static void renderIndex()
     bg.setAttribute('height', height);
     bg.setAttribute('class', 'bg');
     svg.appendChild(bg);
+
+    // Heiz-Phasen als farbige Bänder hinter den Linien
+    var segments = [];
+    var segStart = null;
+    for (var s = 0; s < tsList.length; s++)
+    {
+      if (onList[s])
+      {
+        if (segStart === null)
+        {
+          segStart = tsList[s];
+        }
+      }
+      else if (segStart !== null)
+      {
+        segments.push({ start: segStart, end: tsList[s] });
+        segStart = null;
+      }
+    }
+    if (segStart !== null)
+    {
+      segments.push({ start: segStart, end: tsList[tsList.length - 1] });
+    }
+
+    for (var si = 0; si < segments.length; si++)
+    {
+      var seg = segments[si];
+      var x1 = xForTs(seg.start);
+      var x2 = xForTs(seg.end);
+      if (x2 <= x1)
+      {
+        x2 = x1 + 1;
+      }
+      var band = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      band.setAttribute('x', x1);
+      band.setAttribute('y', padT);
+      band.setAttribute('width', x2 - x1);
+      band.setAttribute('height', height - padT - padB);
+      band.setAttribute('class', 'heat-on-band');
+      svg.appendChild(band);
+    }
 
     // Y-Grid + Labels
     var yTicks = 5;
@@ -396,7 +470,6 @@ static void renderIndex()
       svg.appendChild(lbl);
     }
 
-    // X-Achse
     var axisX = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     axisX.setAttribute('x1', padL);
     axisX.setAttribute('y1', height - padB);
@@ -405,18 +478,12 @@ static void renderIndex()
     axisX.setAttribute('class', 'axis');
     svg.appendChild(axisX);
 
-    // X-Ticks max 6
     var maxXTicks = 6;
-    var stepIdx = 1;
-    if (rows.length > 1)
+    for (var t = 0; t < maxXTicks; t++)
     {
-      stepIdx = Math.floor((rows.length - 1) / (maxXTicks - 1));
-      if (stepIdx < 1) { stepIdx = 1; }
-    }
-    var used = 0;
-    for (var idx = 0; idx < rows.length && used < maxXTicks; idx += stepIdx)
-    {
-      var x = xFor(idx);
+      var rel = (maxXTicks === 1) ? 0 : (t / (maxXTicks - 1));
+      var ts = minTs + rel * tsSpan;
+      var x = xForTs(ts);
       var tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       tick.setAttribute('x1', x);
       tick.setAttribute('y1', height - padB);
@@ -430,9 +497,45 @@ static void renderIndex()
       tl.setAttribute('y', height - padB + 14);
       tl.setAttribute('text-anchor', 'middle');
       tl.setAttribute('class', 'axis-label');
-      tl.textContent = formatTimeShort(tsList[idx]);
+      tl.textContent = formatTimeShort(ts);
       svg.appendChild(tl);
-      used++;
+    }
+
+    function buildTransitions(minTs, maxTs)
+    {
+      var list = [];
+      var dayStart = Number(schedCfg.dayStart) || 0;
+      var nightStart = Number(schedCfg.nightStart) || 0;
+      var startDay = Math.floor(minTs / 86400) * 86400 - 86400;
+      var end = maxTs + 86400;
+      for (var base = startDay; base <= end; base += 86400)
+      {
+        list.push({ ts: base + dayStart * 60, label: 'Tag' });
+        list.push({ ts: base + nightStart * 60, label: 'Nacht' });
+      }
+      return list;
+    }
+
+    var transitions = buildTransitions(minTs, maxTs);
+    for (var ti = 0; ti < transitions.length; ti++)
+    {
+      var tr = transitions[ti];
+      if (tr.ts < minTs || tr.ts > maxTs) { continue; }
+      var xTr = xForTs(tr.ts);
+      var pl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      pl.setAttribute('x1', xTr);
+      pl.setAttribute('y1', padT);
+      pl.setAttribute('x2', xTr);
+      pl.setAttribute('y2', height - padB);
+      pl.setAttribute('class', 'phase-line');
+      svg.appendChild(pl);
+
+      var lblPhase = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      lblPhase.setAttribute('x', xTr + 2);
+      lblPhase.setAttribute('y', padT + 12 + (ti % 2) * 12);
+      lblPhase.setAttribute('class', 'axis-label');
+      lblPhase.textContent = formatTimeShort(tr.ts) + ' ' + tr.label;
+      svg.appendChild(lblPhase);
     }
 
     function buildPath(vals)
@@ -440,7 +543,7 @@ static void renderIndex()
       var d = '';
       for (var i = 0; i < vals.length; i++)
       {
-        var x = xFor(i);
+        var x = xForTs(tsList[i]);
         var y = yFor(vals[i]);
         if (i === 0)
         {
@@ -469,7 +572,6 @@ static void renderIndex()
     pathLower.setAttribute('class', 'lower-line');
     svg.appendChild(pathLower);
 
-    // Y-Achsentitel
     var yLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     yLbl.setAttribute('x', 15);
     yLbl.setAttribute('y', padT + 10);
@@ -477,7 +579,6 @@ static void renderIndex()
     yLbl.textContent = '°C';
     svg.appendChild(yLbl);
 
-    // Hover-Elemente
     var hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     hoverLine.setAttribute('class', 'hover-line');
     hoverLine.style.display = 'none';
@@ -530,11 +631,20 @@ static void renderIndex()
       if (f < 0) { f = 0; }
       if (f > 1) { f = 1; }
 
-      var idx = Math.round(f * (rows.length - 1));
-      if (idx < 0) { idx = 0; }
-      if (idx >= rows.length) { idx = rows.length - 1; }
+      var targetTs = minTs + f * tsSpan;
+      var idx = 0;
+      var bestDiff = Math.abs(tsList[0] - targetTs);
+      for (var ii = 1; ii < tsList.length; ii++)
+      {
+        var diff = Math.abs(tsList[ii] - targetTs);
+        if (diff < bestDiff)
+        {
+          bestDiff = diff;
+          idx = ii;
+        }
+      }
 
-      var xv = xFor(idx);
+      var xv = xForTs(tsList[idx]);
       var yv = yFor(temps[idx]);
 
       hoverLine.setAttribute('x1', xv);
@@ -583,7 +693,7 @@ static void renderIndex()
     tableWrap.innerHTML = html;
   }
 
-    function tryParseHistory(text)
+  function tryParseHistory(text)
   {
     // 1. Normaler JSON-Parse-Versuch
     try
@@ -698,6 +808,24 @@ static void renderIndex()
       tableWrap.innerHTML = '<p>Fehler beim Laden der Verlaufsdaten.</p>';
     });
 })();
+
+(function themeInit()
+{
+  var saved = localStorage.getItem('theme');
+  if (saved)
+  {
+    document.documentElement.setAttribute('data-theme', saved);
+  }
+})();
+
+function toggleTheme()
+{
+  var cur = document.documentElement.getAttribute('data-theme');
+  var next = (cur === 'dark') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+
 )JS";
   html += F("</script>");
 
@@ -714,12 +842,18 @@ static void renderIndex()
  ******************************************************************************/
 static void handleConfigPost()
 {
-  float sp = clampFloat(webServer.arg("setPoint").toFloat(), 5.0f, 35.0f);
+  float daySp   = clampFloat(webServer.arg("daySetPoint").toFloat(), 5.0f, 35.0f);
+  float nightSp = clampFloat(webServer.arg("nightSetPoint").toFloat(), 5.0f, 35.0f);
   float hy = clampFloat(webServer.arg("hysteresis").toFloat(), 0.1f, 5.0f);
   int   bm = clampInt(webServer.arg("boostMinutes").toInt(), 0, 240);
   int   md = webServer.arg("mode").toInt();
+  int   dayStart = clampInt(parseTimeMinutes(webServer.arg("dayStart")), 0, 1439);
+  int   nightStart = clampInt(parseTimeMinutes(webServer.arg("nightStart")), 0, 1439);
 
-  setSetPoint(sp);
+  setDaySetPoint(daySp);
+  setNightSetPoint(nightSp);
+  setDayStartMinutes(dayStart);
+  setNightStartMinutes(nightStart);
   setHysteresis(hy);
   setBoostMinutes(bm);
   setControlMode((ControlMode)md);
@@ -755,7 +889,15 @@ static void handleNudge()
 
   if (field == "setPoint")
   {
-    setSetPoint(getSetPoint() + delta);
+    setDaySetPoint(getDaySetPoint() + delta);
+  }
+  else if (field == "daySetPoint")
+  {
+    setDaySetPoint(getDaySetPoint() + delta);
+  }
+  else if (field == "nightSetPoint")
+  {
+    setNightSetPoint(getNightSetPoint() + delta);
   }
   else if (field == "hysteresis")
   {

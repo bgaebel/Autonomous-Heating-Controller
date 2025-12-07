@@ -5,7 +5,7 @@
 #include <EEPROM.h>
 #include "control.h"
 
-#define APP_VERSION "1.5"
+#define APP_VERSION "1.6"
 
 /***************** BaseTopic Selection ******************************************
  * Select ONE room by uncommenting it. Used to generate MQTT base topic.
@@ -13,8 +13,8 @@
 // #define ROOM_WOHNZIMMER  //-
 // #define ROOM_SCHLAFZIMMER  //-
 // #define ROOM_KUECHE  //-
- #define ROOM_KL_KINDERZIMMER
-// #define ROOM_GR_KINDERZIMMER //-
+// #define ROOM_KL_KINDERZIMMER
+ #define ROOM_GR_KINDERZIMMER //-
 
 #ifdef ROOM_WOHNZIMMER
   #define BASE_TOPIC "Wohnzimmer"
@@ -49,7 +49,7 @@
  * MAGIC + VERSION validate structure. No CRC (Variant 2).
  ******************************************************************************/
 #define CONFIG_MAGIC     0x43464721UL   // "CFG!"
-#define CONFIG_VERSION   2
+#define CONFIG_VERSION   3
 #define EEPROM_ADDR      0
 #define EEPROM_SIZE      128
 
@@ -66,9 +66,12 @@ struct Config
   uint16_t reserved = 0;
 
   // Control parameters
-  float       setPoint     = 21.0f;     // °C
-  float       hysteresis   = 0.6f;      // °C
-  int         boostMinutes = 20;        // min
+  float       daySetPoint   = 21.0f;     // °C
+  float       nightSetPoint = 18.0f;     // °C
+  uint16_t    dayStartMin   = 6 * 60;    // Minuten seit Mitternacht
+  uint16_t    nightStartMin = 22 * 60;   // Minuten seit Mitternacht
+  float       hysteresis    = 0.6f;      // °C
+  int         boostMinutes  = 20;        // min
 
   // BOOST timing (persist to survive reset)
   unsigned long boostEndMillis = 0;
@@ -119,8 +122,16 @@ void loadConfig();
 void saveConfig();
 
 /***************** Accessors ****************************************************/
-float getSetPoint();
-void  setSetPoint(float v);
+float getSetPoint();             // aktueller (wirksamer) Sollwert
+float getDaySetPoint();
+float getNightSetPoint();
+void  setDaySetPoint(float v);
+void  setNightSetPoint(float v);
+bool  isDayScheduleActive();
+int   getDayStartMinutes();
+int   getNightStartMinutes();
+void  setDayStartMinutes(int v);
+void  setNightStartMinutes(int v);
 
 float getHysteresis();
 void  setHysteresis(float v);
