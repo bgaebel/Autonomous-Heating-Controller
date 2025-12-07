@@ -11,10 +11,10 @@
  * Select ONE room by uncommenting it. Used to generate MQTT base topic.
  ******************************************************************************/
 // #define ROOM_WOHNZIMMER  //-
-// #define ROOM_SCHLAFZIMMER  //-
+ #define ROOM_SCHLAFZIMMER  //
 // #define ROOM_KUECHE  //-
-// #define ROOM_KL_KINDERZIMMER
- #define ROOM_GR_KINDERZIMMER //-
+// #define ROOM_KL_KINDERZIMMER //-
+// #define ROOM_GR_KINDERZIMMER //-
 
 #ifdef ROOM_WOHNZIMMER
   #define BASE_TOPIC "Wohnzimmer"
