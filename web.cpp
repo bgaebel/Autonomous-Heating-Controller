@@ -88,7 +88,71 @@ static void renderIndex()
   html += F("<title>Heating Controller &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
-  html += F("<style>:root{--bg:#f7f8fa;--card:#ffffff;--text:#0f172a;--muted:#6b7280;--accent:#2563eb;--accent-soft:rgba(37,99,235,.08);--success:#16a34a;--danger:#ef4444;--border:#e5e7eb;--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;--heat-band:rgba(239,68,68,0.16);--shadow-soft:0 4px 12px rgba(15,23,42,.18);}[data-theme='dark']{--bg:#020617;--card:#020617;--text:#e5e7eb;--muted:#94a3b8;--accent:#60a5fa;--accent-soft:rgba(96,165,250,.1);--success:#22c55e;--danger:#f97373;--border:#1f2937;--temp-line:#fdba74;--upper-line:#4ade80;--lower-line:#93c5fd;--phase-line:#c4b5fd;--heat-band:rgba(248,113,113,0.18);--shadow-soft:0 8px 24px rgba(0,0,0,.65);}body{font-family:system-ui,sans-serif;margin:1rem;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease;}h2{margin-bottom:.2rem;}.card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;box-shadow:var(--shadow-soft);transition:box-shadow .18s ease,transform .12s ease;}.card:hover{transform:translateY(-1px);} .grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}.btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.6rem;text-decoration:none;background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:.25rem;transition:background .16s ease,transform .08s ease,box-shadow .16s ease,border-color .16s ease;}.btn:hover{background:var(--accent);color:#fff;transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.35);border-color:var(--accent);}input,select,button{font-family:inherit;background:var(--card);color:var(--text);}input{padding:.45rem;border:1px solid var(--border);border-radius:.5rem;}input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft);}.select-lg{font-size:1.05rem;padding:.5rem .8rem;min-width:12rem;height:2.2rem;border:1px solid var(--border);border-radius:.6rem;}.badge{background:var(--accent);color:#fff;border-radius:.5rem;padding:.2rem .5rem;font-size:.8rem;margin-left:.4rem;}.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;}.label-small{color:var(--muted);font-size:.9rem;}.hist-table{width:100%;border-collapse:collapse;margin-top:.5rem;}.hist-table th,.hist-table td{border:1px solid var(--border);padding:.4rem;text-align:left;font-size:.95rem;}.hist-table th{background:var(--accent);color:#fff;}.hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;}.view-toggle{display:flex;gap:.5rem;}.tab-btn{padding:.4rem .8rem;border-radius:.6rem;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease;}.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}.chart-card{margin-top:1.5rem;}#histWrap{position:relative;max-width:100%;height:320px;}#histWrap svg{width:100%;height:100%;}#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.6;}#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.9;}#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}#histSvg .grid-line{stroke:rgba(148,163,184,.45);stroke-width:1;fill:none;}#histSvg .bg{fill:var(--bg);}#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}#histSvg .hover-dot{fill:var(--danger);}#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}.heat-on-band{fill:var(--heat-band);}@media(max-width:680px){body{margin:.6rem;}.grid{grid-template-columns:1fr 1fr;}.grid label{font-size:.9rem;}.btn{width:100%;justify-content:center;}}</style>");
+  html += F("<style>"
+            ":root{--bg:#f7f8fa;--card:#ffffff;--text:#0f172a;--muted:#6b7280;--accent:#2563eb;"
+            "--accent-soft:rgba(37,99,235,.08);--success:#16a34a;--danger:#ef4444;--border:#e5e7eb;"
+            "--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;"
+            "--heat-band:rgba(239,68,68,0.16);--shadow-soft:0 4px 12px rgba(15,23,42,.18);}"
+            "[data-theme='dark']{--bg:#020617;--card:#020617;--text:#e5e7eb;--muted:#94a3b8;"
+            "--accent:#60a5fa;--accent-soft:rgba(96,165,250,.1);--success:#22c55e;--danger:#f97373;"
+            "--border:#1f2937;--temp-line:#fdba74;--upper-line:#4ade80;--lower-line:#93c5fd;"
+            "--phase-line:#c4b5fd;--heat-band:rgba(248,113,113,0.18);--shadow-soft:0 8px 24px rgba(0,0,0,.65);}"
+            "body{font-family:system-ui,sans-serif;margin:1rem;background:var(--bg);color:var(--text);"
+            "transition:background .25s ease,color .25s ease;}"
+            "h2{margin-bottom:.2rem;}"
+            ".card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;"
+            "box-shadow:var(--shadow-soft);margin-bottom:1rem;}"
+            ".grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}"
+            ".btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.6rem;text-decoration:none;"
+            "background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;"
+            "gap:.25rem;transition:background .16s ease,box-shadow .16s ease,border-color .16s ease;}"
+            ".btn:hover{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.35);"
+            "border-color:var(--accent);}"
+            "input,select,button{font-family:inherit;background:var(--card);color:var(--text);}"
+            "input{padding:.45rem;border:1px solid var(--border);border-radius:.5rem;}"
+            "input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft);}"
+            "input[type='time']{padding:.45rem .6rem;min-height:2.4rem;font-size:1rem;}"
+            ".select-lg{font-size:1.05rem;padding:.5rem .8rem;min-width:12rem;height:2.2rem;"
+            "border:1px solid var(--border);border-radius:.6rem;}"
+            ".badge{background:var(--accent);color:#fff;border-radius:.5rem;padding:.2rem .5rem;font-size:.8rem;"
+            "margin-left:.4rem;}"
+            ".split{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;}"
+            ".label-small{color:var(--muted);font-size:.9rem;}"
+            ".hist-table{width:100%;border-collapse:collapse;margin-top:.5rem;}"
+            ".hist-table th,.hist-table td{border:1px solid var(--border);padding:.4rem;text-align:left;font-size:.95rem;}"
+            ".hist-table th{background:var(--accent);color:#fff;}"
+            ".hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;}"
+            ".view-toggle{display:flex;gap:.5rem;}"
+            ".tab-btn{padding:.4rem .8rem;border-radius:.6rem;border:1px solid var(--border);background:var(--card);"
+            "cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease;}"
+            ".tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}"
+            ".chart-card{margin-top:1.5rem;}"
+            "#histWrap{position:relative;max-width:100%;height:320px;}"
+            "#histWrap svg{width:100%;height:100%;}"
+            "#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.6;}"
+            "#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
+            "#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
+            "#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.9;}"
+            "#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}"
+            "#histSvg .grid-line{stroke:rgba(148,163,184,.45);stroke-width:1;fill:none;}"
+            "#histSvg .bg{fill:var(--bg);}"
+            "#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}"
+            "#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}"
+            "#histSvg .hover-dot{fill:var(--danger);}"
+            "#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}"
+            ".heat-on-band{fill:var(--heat-band);}"
+            ".status-bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;font-size:.95rem;}"
+            ".status-item{display:flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border-radius:.6rem;"
+            "background:var(--accent-soft);border:1px solid var(--border);}"
+            ".status-ok{background:rgba(34,197,94,.15);color:var(--success);border-color:rgba(34,197,94,.4);}"
+            ".status-bad{background:rgba(239,68,68,.15);color:var(--danger);border-color:rgba(239,68,68,.4);}"
+            "@media(max-width:680px){"
+              "body{margin:.6rem;}"
+              ".grid{grid-template-columns:1fr 1fr;}"
+              ".grid label{font-size:.9rem;}"
+              ".btn{justify-content:center;}"
+            "}"
+            "</style>");
   html += F("</head><body>");
 
   // Header
@@ -103,26 +167,37 @@ static void renderIndex()
   html += F("<button class='btn' type='button' onclick='toggleTheme()'>🌙 Dark / Light</button>");
   html += F("</div>");
 
-  // Statuszeile
-  html += F("<div class='card' style='margin-bottom:1rem'>Status: Mode=");
+  // Statuszeile (modern, ohne Temperatur)
+  html += F("<div class='card'>");
+  html += F("<div class='status-bar'>");
+
+  // Modus
+  html += F("<div class='status-item'>⚙️ ");
   html += modeToStr(getControlMode());
-  html += F(" | Heater=");
-  html += (heaterIsOn ? "ON" : "OFF");
-  html += F(" | Temp=");
-  html += (isnan(t) ? String("NaN") : String(t, 1));
-  html += F(" &deg;C");
-  html += F(" | MQTT=");
+  html += F("</div>");
+
+  // Heater
+  html += F("<div class='status-item ");
+  html += (heaterIsOn ? "status-ok" : "status-bad");
+  html += F("'>🔥 ");
+  html += (heaterIsOn ? "Heater ON" : "Heater OFF");
+  html += F("</div>");
+
+  // MQTT
+  html += F("<div class='status-item ");
+  html += (mqttIsConnected() ? "status-ok" : "status-bad");
+  html += F("'>📡 MQTT ");
   if (mqttIsConnected())
   {
     html += F("OK");
   }
   else
   {
-    html += F("DOWN (");
-    html += mqttConnStateText();
-    html += F(")");
+    html += F("DOWN");
   }
   html += F("</div>");
+
+  html += F("</div></div>");
 
   auto fmtTime = [](int minutes)
   {
@@ -545,7 +620,7 @@ static void renderIndex()
       {
         var x = xForTs(tsList[i]);
         var y = yFor(vals[i]);
-        if (i === 0)
+        if (i == 0)
         {
           d += 'M' + x + ' ' + y;
         }
@@ -657,7 +732,7 @@ static void renderIndex()
       hoverDot.setAttribute('cy', yv);
       hoverDot.style.display = 'block';
 
-      var txt = formatTs(tsList[idx]) + '  ' + formatTemp(temps[idx]);
+      var txt = formatTs(tsList[idx]) + "  " + formatTemp(temps[idx]);
       hoverText.textContent = txt;
       hoverText.style.display = 'block';
     }
@@ -695,15 +770,12 @@ static void renderIndex()
 
   function tryParseHistory(text)
   {
-    // 1. Normaler JSON-Parse-Versuch
     try
     {
       return JSON.parse(text);
     }
     catch (e)
     {
-      // 2. Reparatur-Versuch für abgeschnittene Arrays
-      //    Beispiel: [{"ts":...,"h":0},{"ts":...,"h":0
       var start = text.indexOf('[');
       var endObj = text.lastIndexOf('}');
 
@@ -712,17 +784,14 @@ static void renderIndex()
         return null;
       }
 
-      // Nur den Teil von der ersten '[' bis zur letzten '}' nehmen
       var trimmed = text.slice(start, endObj + 1);
 
-      // Wenn kein '[' am Anfang -> einklammern
       if (trimmed.charAt(0) !== '[')
       {
         trimmed = '[' + trimmed + ']';
       }
       else
       {
-        // Array war nur hinten offen -> einfach ']' anhängen
         trimmed = trimmed + ']';
       }
 
@@ -740,7 +809,6 @@ static void renderIndex()
   fetch('/history.json?days=1')
     .then(function(r)
     {
-      // Rohtext holen, nicht direkt r.json()
       return r.text();
     })
     .then(function(text)
@@ -759,7 +827,6 @@ static void renderIndex()
         return;
       }
 
-      // Ab hier alles wie vorher: drawChart(rows), Events bauen, Tabelle rendern
       drawChart(rows);
 
       var events = [];
