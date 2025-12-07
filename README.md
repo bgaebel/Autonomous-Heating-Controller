@@ -88,7 +88,9 @@ void loop() {
 
 ## Web UI
 
-<img width="778" height="796" alt="image" src="https://github.com/user-attachments/assets/54541f14-a06c-4b66-af47-933e44f2ba65" />
+<img width="772" height="860" alt="image" src="https://github.com/user-attachments/assets/05ea695b-2c05-4f40-b3bb-428386926639" />
+
+<img width="766" height="857" alt="image" src="https://github.com/user-attachments/assets/aaedc6bd-f652-4e08-8432-e41e928f5bd5" />
 
 Shows live state + config:
 
