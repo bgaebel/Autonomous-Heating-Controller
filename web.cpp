@@ -88,41 +88,7 @@ static void renderIndex()
   html += F("<title>Heating Controller &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
-  html += F("<style>"
-            "body{font-family:sans-serif;margin:1rem;background:#f7f8fa;color:#1f2937}"
-            "h2{margin-bottom:.2rem}"
-            ".grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center}"
-            ".btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;text-decoration:none}"
-            "input,select,button{font-family:inherit}"
-            "input{padding:.4rem;border:1px solid #cfd2dc;border-radius:.4rem}"
-            ".select-lg{font-size:1.1rem;padding:.55rem .9rem;min-width:12rem;height:2.3rem}"
-            ".chart-card{margin-top:1.5rem}"
-            "#histWrap{position:relative;max-width:100%;height:320px}"
-            "#histWrap svg{width:100%;height:100%}"
-            ".badge{background:#1a73e8;color:#fff;border-radius:.4rem;padding:.15rem .45rem;font-size:.85rem;margin-left:.5rem}"
-            ".hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap}"
-            ".view-toggle{display:flex;gap:.5rem}"
-            ".tab-btn{padding:.4rem .8rem;border:1px solid #ccc;border-radius:.5rem;background:#f6f6f6;cursor:pointer}"
-            ".tab-btn.active{background:#1a73e8;color:#fff;border-color:#1a73e8}"
-            ".hist-table{width:100%;border-collapse:collapse;margin-top:.5rem}"
-            ".hist-table th,.hist-table td{border:1px solid #ddd;padding:.4rem;text-align:left;font-size:.95rem}"
-            ".hist-table th{background:#f6f6f6}"
-            "#histSvg .temp-line{stroke:#d93025;fill:none;stroke-width:1.5}"
-            "#histSvg .upper-line{stroke:#0b8043;fill:none;stroke-width:1;stroke-dasharray:4,4}"
-            "#histSvg .lower-line{stroke:#1a73e8;fill:none;stroke-width:1;stroke-dasharray:4,4}"
-            "#histSvg .phase-line{stroke:#9c27b0;fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.8}"
-            "#histSvg .axis{stroke:#999;stroke-width:1;fill:none}"
-            "#histSvg .grid-line{stroke:#e0e0e0;stroke-width:1;fill:none}"
-            "#histSvg .bg{fill:#fafafa}"
-            "#histSvg .axis-label{fill:#333;font-size:10px;font-family:sans-serif}"
-            "#histSvg .hover-line{stroke:#555;stroke-width:1;stroke-dasharray:2,2}"
-            "#histSvg .hover-dot{fill:#d93025}"
-            "#histSvg .hover-text{fill:#000;font-size:11px;font-family:sans-serif}"
-            ".card{background:#fff;border:1px solid #e5e7eb;border-radius:.6rem;padding:1rem;box-shadow:0 1px 2px rgba(0,0,0,0.06)}"
-            ".card h3{margin-top:0}"
-            ".split{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}"
-            ".label-small{color:#6b7280;font-size:.9rem}"
-            "</style>");
+  html += F("<style>:root{--bg:#f7f8fa;--card:#ffffff;--text:#0f172a;--muted:#6b7280;--accent:#2563eb;--accent-soft:rgba(37,99,235,.08);--success:#16a34a;--danger:#ef4444;--border:#e5e7eb;--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;--heat-band:rgba(239,68,68,0.16);--shadow-soft:0 4px 12px rgba(15,23,42,.18);}[data-theme='dark']{--bg:#020617;--card:#020617;--text:#e5e7eb;--muted:#94a3b8;--accent:#60a5fa;--accent-soft:rgba(96,165,250,.1);--success:#22c55e;--danger:#f97373;--border:#1f2937;--temp-line:#fdba74;--upper-line:#4ade80;--lower-line:#93c5fd;--phase-line:#c4b5fd;--heat-band:rgba(248,113,113,0.18);--shadow-soft:0 8px 24px rgba(0,0,0,.65);}body{font-family:system-ui,sans-serif;margin:1rem;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease;}h2{margin-bottom:.2rem;}.card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;box-shadow:var(--shadow-soft);transition:box-shadow .18s ease,transform .12s ease;}.card:hover{transform:translateY(-1px);} .grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}.btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.6rem;text-decoration:none;background:var(--card);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:.25rem;transition:background .16s ease,transform .08s ease,box-shadow .16s ease,border-color .16s ease;}.btn:hover{background:var(--accent);color:#fff;transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.35);border-color:var(--accent);}input,select,button{font-family:inherit;background:var(--card);color:var(--text);}input{padding:.45rem;border:1px solid var(--border);border-radius:.5rem;}input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-soft);}.select-lg{font-size:1.05rem;padding:.5rem .8rem;min-width:12rem;height:2.2rem;border:1px solid var(--border);border-radius:.6rem;}.badge{background:var(--accent);color:#fff;border-radius:.5rem;padding:.2rem .5rem;font-size:.8rem;margin-left:.4rem;}.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;}.label-small{color:var(--muted);font-size:.9rem;}.hist-table{width:100%;border-collapse:collapse;margin-top:.5rem;}.hist-table th,.hist-table td{border:1px solid var(--border);padding:.4rem;text-align:left;font-size:.95rem;}.hist-table th{background:var(--accent);color:#fff;}.hist-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;}.view-toggle{display:flex;gap:.5rem;}.tab-btn{padding:.4rem .8rem;border-radius:.6rem;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:background .16s ease,color .16s ease,border-color .16s ease;}.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}.chart-card{margin-top:1.5rem;}#histWrap{position:relative;max-width:100%;height:320px;}#histWrap svg{width:100%;height:100%;}#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.6;}#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.9;}#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}#histSvg .grid-line{stroke:rgba(148,163,184,.45);stroke-width:1;fill:none;}#histSvg .bg{fill:var(--bg);}#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}#histSvg .hover-dot{fill:var(--danger);}#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}.heat-on-band{fill:var(--heat-band);}@media(max-width:680px){body{margin:.6rem;}.grid{grid-template-columns:1fr 1fr;}.grid label{font-size:.9rem;}.btn{width:100%;justify-content:center;}}</style>");
   html += F("</head><body>");
 
   // Header
@@ -131,12 +97,14 @@ static void renderIndex()
   html += F(" <span class='badge'>v");
   html += APP_VERSION;
   html += F("</span></h2>");
-  html += F("<div>Host: ");
+  html += F("<div style='display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.4rem 0 1rem 0;'>Host: ");
   html += getHostLabel();
-  html += F(".local</div>");
+  html += F(".local");
+  html += F("<button class='btn' type='button' onclick='toggleTheme()'>🌙 Dark / Light</button>");
+  html += F("</div>");
 
   // Statuszeile
-  html += F("<div>Status: Mode=");
+  html += F("<div class='card' style='margin-bottom:1rem'>Status: Mode=");
   html += modeToStr(getControlMode());
   html += F(" | Heater=");
   html += (heaterIsOn ? "ON" : "OFF");
@@ -154,9 +122,10 @@ static void renderIndex()
     html += mqttConnStateText();
     html += F(")");
   }
-  html += F("</div><hr>");
+  html += F("</div>");
 
-  auto fmtTime = [](int minutes) {
+  auto fmtTime = [](int minutes)
+  {
     int h = minutes / 60;
     int m = minutes % 60;
     char buf[6];
@@ -165,15 +134,17 @@ static void renderIndex()
   };
 
   html += F("<div class='card'>");
-  html += F("<div class='label-small'>Aktueller Sollwert</div>");
-  html += F("<h3>");
+  html += F("<p><div class='label-small'>Aktuelle Temperatur</div>");
+  html += F("<div class='label-lg'>");
+  html += (isnan(t) ? String("NaN") : String(t, 1));
+  html += F(" &deg;C</div></p>");
+
+  html += F("<p><div class='label-small'>Heizung Einschalttemperatur</div>");
+  html += F("<div class='label-lg'>");
   html += String(getSetPoint(), 1);
   html += F(" °C <span class='badge'>");
   html += (isDayScheduleActive() ? "Tag" : "Nacht");
-  html += F("</span></h3>");
-  html += F("</div>");
-
-  html += F("<form method='POST' action='/config'>");
+  html += F("</span></div></p></div>");
 
   html += F("<div class='split'>");
 
@@ -207,9 +178,10 @@ static void renderIndex()
             "<span></span><span></span></div>");
   html += F("</div>");
 
-  html += F("</div>");
+  html += F("</div>");  // close split-div
 
   // Hysteresis
+  html += F("<div class='card'>");
   html += F("<div class='grid'><label>Hysteresis (°C)</label>"
             "<input name='hysteresis' type='number' step='0.1' min='0.1' max='5' value='");
   html += String(getHysteresis(), 1);
@@ -225,36 +197,7 @@ static void renderIndex()
             "<a class='btn' href='/nudge?field=boostMinutes&delta=-5'>-</a>"
             "<a class='btn' href='/nudge?field=boostMinutes&delta=5'>+</a></div>");
 
-  // Mode select
-  html += F("<div class='grid'><label>Mode</label><select name='mode' class='select-lg'>");
-  ControlMode m = getControlMode();
-  html += F("<option value='0'");
-  if (m == MODE_AUTO)
-  {
-    html += F(" selected");
-  }
-  html += F(">AUTO</option>");
-  html += F("<option value='1'");
-  if (m == MODE_OFF)
-  {
-    html += F(" selected");
-  }
-  html += F(">OFF</option>");
-  html += F("<option value='2'");
-  if (m == MODE_BOOST)
-  {
-    html += F(" selected");
-  }
-  html += F(">BOOST</option>");
-  html += F("</select><span></span><span></span></div>");
-
-  html += F("<div class='grid'><span></span>"
-            "<button class='btn' type='submit'>Save</button>"
-            "<span></span><span></span></div>");
-  html += F("</form>");
-
   // Boost control
-  html += F("<h3>Boost</h3>");
   if (getControlMode() == MODE_BOOST)
   {
     unsigned long remaining = 0;
@@ -268,10 +211,11 @@ static void renderIndex()
     html += F(" min remaining</p>");
   }
   html += F("<form method='POST' action='/boost'>");
-  html += F("<div class='grid'><label>Start Boost</label>"
+  html += F("<div class='grid'><label>Boost</label>"
             "<button class='btn' type='submit'>Start</button>"
             "<span></span><span></span></div>");
   html += F("</form>");
+  html += F("</div>");  // close card
 
   // History-Card (24h)
   html += F("<div class='chart-card'>"
@@ -400,6 +344,7 @@ static void renderIndex()
     var uppers = [];
     var lowers = [];
     var tsList = [];
+    var onList = [];
 
     for (var i = 0; i < rows.length; i++)
     {
@@ -407,11 +352,13 @@ static void renderIndex()
       var tVal = Number(r.t) || 0;
       var spVal = Number(r.sp) || 0;
       var hyVal = Number(r.hy) || 0;
+      var on = r.h ? true : false;
 
       temps.push(tVal / 100.0);
       uppers.push((spVal + hyVal) / 100.0);
       lowers.push((spVal - hyVal) / 100.0);
       tsList.push(Number(r.ts) || 0);
+      onList.push(on);
     }
 
     var allVals = temps.concat(uppers).concat(lowers);
@@ -433,7 +380,7 @@ static void renderIndex()
     var maxTs = tsList[tsList.length - 1];
     if (maxTs === minTs)
     {
-      maxTs = minTs + 60; // 1 Minute, damit Division > 0
+      maxTs = minTs + 60;
     }
     var tsSpan = maxTs - minTs;
 
@@ -457,6 +404,47 @@ static void renderIndex()
     bg.setAttribute('height', height);
     bg.setAttribute('class', 'bg');
     svg.appendChild(bg);
+
+    // Heiz-Phasen als farbige Bänder hinter den Linien
+    var segments = [];
+    var segStart = null;
+    for (var s = 0; s < tsList.length; s++)
+    {
+      if (onList[s])
+      {
+        if (segStart === null)
+        {
+          segStart = tsList[s];
+        }
+      }
+      else if (segStart !== null)
+      {
+        segments.push({ start: segStart, end: tsList[s] });
+        segStart = null;
+      }
+    }
+    if (segStart !== null)
+    {
+      segments.push({ start: segStart, end: tsList[tsList.length - 1] });
+    }
+
+    for (var si = 0; si < segments.length; si++)
+    {
+      var seg = segments[si];
+      var x1 = xForTs(seg.start);
+      var x2 = xForTs(seg.end);
+      if (x2 <= x1)
+      {
+        x2 = x1 + 1;
+      }
+      var band = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      band.setAttribute('x', x1);
+      band.setAttribute('y', padT);
+      band.setAttribute('width', x2 - x1);
+      band.setAttribute('height', height - padT - padB);
+      band.setAttribute('class', 'heat-on-band');
+      svg.appendChild(band);
+    }
 
     // Y-Grid + Labels
     var yTicks = 5;
@@ -482,7 +470,6 @@ static void renderIndex()
       svg.appendChild(lbl);
     }
 
-    // X-Achse
     var axisX = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     axisX.setAttribute('x1', padL);
     axisX.setAttribute('y1', height - padB);
@@ -491,7 +478,6 @@ static void renderIndex()
     axisX.setAttribute('class', 'axis');
     svg.appendChild(axisX);
 
-    // X-Ticks max 6
     var maxXTicks = 6;
     for (var t = 0; t < maxXTicks; t++)
     {
@@ -586,7 +572,6 @@ static void renderIndex()
     pathLower.setAttribute('class', 'lower-line');
     svg.appendChild(pathLower);
 
-    // Y-Achsentitel
     var yLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     yLbl.setAttribute('x', 15);
     yLbl.setAttribute('y', padT + 10);
@@ -594,7 +579,6 @@ static void renderIndex()
     yLbl.textContent = '°C';
     svg.appendChild(yLbl);
 
-    // Hover-Elemente
     var hoverLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     hoverLine.setAttribute('class', 'hover-line');
     hoverLine.style.display = 'none';
@@ -709,7 +693,7 @@ static void renderIndex()
     tableWrap.innerHTML = html;
   }
 
-    function tryParseHistory(text)
+  function tryParseHistory(text)
   {
     // 1. Normaler JSON-Parse-Versuch
     try
@@ -824,6 +808,24 @@ static void renderIndex()
       tableWrap.innerHTML = '<p>Fehler beim Laden der Verlaufsdaten.</p>';
     });
 })();
+
+(function themeInit()
+{
+  var saved = localStorage.getItem('theme');
+  if (saved)
+  {
+    document.documentElement.setAttribute('data-theme', saved);
+  }
+})();
+
+function toggleTheme()
+{
+  var cur = document.documentElement.getAttribute('data-theme');
+  var next = (cur === 'dark') ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+}
+
 )JS";
   html += F("</script>");
 

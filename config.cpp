@@ -62,7 +62,7 @@ void saveConfig()
 /***************** getSetPoint **************************************************/
 float getSetPoint()
 {
-  return isDayScheduleActive() ? config.daySetPoint : config.nightSetPoint;
+  return isDayScheduleActive() ? config.daySetPoint - getHysteresis() : config.nightSetPoint - getHysteresis();
 }
 
 /***************** getDaySetPoint **********************************************/
