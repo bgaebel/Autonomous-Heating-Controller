@@ -28,6 +28,15 @@ enum ControlState
 void initControl();
 void handleControl();
 bool isHeaterOn();
+void setHeater(bool on);
+
+/***************** requestHeaterOffNow ******************************************
+ * params: none
+ * return: void
+ * Description:
+ * Forces the heater output OFF immediately while keeping the control logic active.
+ ******************************************************************************/
+void requestHeaterOffNow();
 
 ControlState getControlState();
 ControlMode getControlMode();
