@@ -7,37 +7,30 @@
 static ControlMode  activeMode = MODE_AUTO;  // internal active mode
 static ControlMode  prevMode   = (ControlMode)(-1); // to detect on-entry
 static ControlState controlState = STATE_IDLE;
-static bool         heaterOn   = false;      // physical output cache
-
-/***************** setHeater ****************************************************
- * params: on
- * return: void
- * Description:
- * Writes the relay only if the requested state differs from the cached state.
- ******************************************************************************/
-static void setHeater(bool on)
-{
-  if (heaterOn == on)
-  {
-    return;
-  }
-  digitalWrite(RELAY_PIN, on ? HIGH : LOW);
-  heaterOn = on;
-
-  // >>> LED-Basis aktualisieren:
-  ledSetBaseFromHeater(on);
-}
 
 /***************** isHeaterOn ***************************************************
  * params: none
  * return: bool
  * Description:
- * Returns current physical heater output state.
+ * Returns the actual heater state by reading the relay output pin.
  ******************************************************************************/
 bool isHeaterOn()
 {
-  return heaterOn;
+  return digitalRead(RELAY_PIN) == HIGH;
 }
+
+/***************** setHeater ****************************************************
+ * params: on - desired heater state
+ * return: void
+ * Description:
+ * Sets the heater relay output.
+ ******************************************************************************/
+void setHeater(bool on)
+{
+  digitalWrite(RELAY_PIN, on ? HIGH : LOW);
+  ledSetBaseFromHeater(on);
+}
+
 
 /***************** initControl **************************************************
  * params: none
@@ -54,6 +47,20 @@ void initControl()
   // Pick up the persisted request as initial active mode.
   activeMode = getControlMode();
   prevMode   = (ControlMode)(-1); // force on-entry in first handleControl()
+}
+
+/***************** requestHeaterOffNow ******************************************
+ * params: none
+ * return: void
+ * Description:
+ * Forces the heater output OFF immediately while keeping the control logic active.
+ ******************************************************************************/
+void requestHeaterOffNow()
+{
+  setHeater(false);
+
+  // Reset state so AUTO can re-evaluate cleanly on next loop
+  controlState = STATE_IDLE;
 }
 
 /***************** handleControl ************************************************
@@ -201,7 +208,7 @@ void handleControl()
       if (controlState == STATE_ERROR)
       {
         // Nach Fehler in den bisherigen physischen Zustand zurückkehren
-        controlState = heaterOn ? STATE_HEATING : STATE_IDLE;
+        controlState = isHeaterOn() ? STATE_HEATING : STATE_IDLE;
       }
 
       // --- Transitions ---

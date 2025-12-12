@@ -1,8 +1,5 @@
 #include "led.h"
 
-/***************** Internal State **********************************************/
-static bool baseHeaterOn   = false;
-
 /***************** Helpers ******************************************************/
 static inline void writeLedLogical(bool logicalOn)
 {
@@ -17,12 +14,11 @@ static inline void writeLedLogical(bool logicalOn)
  * params: none
  * return: void
  * Description:
- * Initializes LED GPIO and sets default (base OFF).
+ * Initializes LED GPIO and sets default (OFF).
  ******************************************************************************/
 void initLed()
 {
   pinMode(LED_PIN, OUTPUT);
-  baseHeaterOn = false;
   writeLedLogical(false);
 }
 
@@ -30,16 +26,20 @@ void initLed()
  * params: heaterOn
  * return: void
  * Description:
- * Mirrors relay state directly to the LED.
+ * Mirrors heater state directly to the LED.
  ******************************************************************************/
 void ledSetBaseFromHeater(bool heaterOn)
 {
-  baseHeaterOn = heaterOn;
-  writeLedLogical(baseHeaterOn);
+  writeLedLogical(heaterOn);
 }
 
-/***************** handleLed ****************************************************/
+/***************** handleLed ****************************************************
+ * params: none
+ * return: void
+ * Description:
+ * Non-blocking LED handler. No internal state needed.
+ ******************************************************************************/
 void handleLed()
 {
-  writeLedLogical(baseHeaterOn);
+  // no-op
 }

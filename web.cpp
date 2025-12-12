@@ -60,6 +60,8 @@ static int parseTimeMinutes(const String &val)
   return h * 60 + m;
 }
 
+static void handleHeaterOffPost();
+
 /***************** handleHistoryJson ********************************************
  * params: none
  * return: void
@@ -78,7 +80,7 @@ static void handleHistoryJson();
 static void renderIndex()
 {
   const float t = getLastTemperature();
-  const bool heaterIsOn = digitalRead(RELAY_PIN);
+  const bool heaterIsOn = isHeaterOn();
 
   String html;
   html.reserve(8192);
@@ -182,6 +184,16 @@ static void renderIndex()
   html += F("'>🔥 ");
   html += (heaterIsOn ? "Heater ON" : "Heater OFF");
   html += F("</div>");
+
+  if (heaterIsOn)
+  {
+    html += F(
+      "<form method='POST' action='/heaterOff' style='margin:0;'>"
+      "<button class='btn' type='submit' "
+      "onclick='return confirm(\"Heizung wirklich ausschalten?\")'>"
+      "🛑 Heater OFF</button></form>"
+    );
+  }
 
   // MQTT
   html += F("<div class='status-item ");
@@ -928,6 +940,18 @@ static void handleConfigPost()
   renderIndex();
 }
 
+/***************** handleHeaterOffPost ******************************************
+ * params: none
+ * return: void
+ * Description:
+ * Manual heater OFF: forces relay OFF but does not change the control mode.
+ ******************************************************************************/
+static void handleHeaterOffPost()
+{
+  requestHeaterOffNow();
+  renderIndex();
+}
+
 /***************** handleBoostPost **********************************************
  * params: none
  * return: void
@@ -991,6 +1015,8 @@ void initWebServer()
   webServer.on("/boost", HTTP_POST, handleBoostPost);
   webServer.on("/nudge", HTTP_GET, handleNudge);
   webServer.on("/history.json", HTTP_GET, handleHistoryJson);
+  webServer.on("/heaterOff", HTTP_POST, handleHeaterOffPost);
+  
   webServer.begin();
 }
 
