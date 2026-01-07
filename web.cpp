@@ -188,10 +188,9 @@ static void renderIndex()
   if (heaterIsOn)
   {
     html += F(
-      "<form method='POST' action='/heaterOff' style='margin:0;'>"
-      "<button class='btn' type='submit' "
-      "onclick='return confirm(\"Heizung wirklich ausschalten?\")'>"
-      "🛑 Heater OFF</button></form>"
+      "<button class='btn' type='button' "
+      "onclick='sendHeaterOff()'>"
+      "🛑 Heater OFF</button>"
     );
   }
 
@@ -241,8 +240,8 @@ static void renderIndex()
             "<input name='daySetPoint' type='number' step='0.1' min='5' max='35' value='");
   html += String(getDaySetPoint(), 1);
   html += F("'>"
-            "<a class='btn' href='/nudge?field=daySetPoint&delta=-0.5'>-</a>"
-            "<a class='btn' href='/nudge?field=daySetPoint&delta=0.5'>+</a></div>");
+            "<button class='btn' type='button' onclick='sendNudge(\"daySetPoint\",-0.5)'>-</button>"
+            "<button class='btn' type='button' onclick='sendNudge(\"daySetPoint\",0.5)'>+</button></div>");
   html += F("<div class='grid'><label>Beginn</label>"
             "<input name='dayStart' type='time' step='300' value='");
   html += fmtTime(getDayStartMinutes());
@@ -256,8 +255,8 @@ static void renderIndex()
             "<input name='nightSetPoint' type='number' step='0.1' min='5' max='35' value='");
   html += String(getNightSetPoint(), 1);
   html += F("'>"
-            "<a class='btn' href='/nudge?field=nightSetPoint&delta=-0.5'>-</a>"
-            "<a class='btn' href='/nudge?field=nightSetPoint&delta=0.5'>+</a></div>");
+            "<button class='btn' type='button' onclick='sendNudge(\"nightSetPoint\",-0.5)'>-</button>"
+            "<button class='btn' type='button' onclick='sendNudge(\"nightSetPoint\",0.5)'>+</button></div>");
   html += F("<div class='grid'><label>Beginn</label>"
             "<input name='nightStart' type='time' step='300' value='");
   html += fmtTime(getNightStartMinutes());
@@ -273,16 +272,16 @@ static void renderIndex()
             "<input name='hysteresis' type='number' step='0.1' min='0.1' max='5' value='");
   html += String(getHysteresis(), 1);
   html += F("'>"
-            "<a class='btn' href='/nudge?field=hysteresis&delta=-0.1'>-</a>"
-            "<a class='btn' href='/nudge?field=hysteresis&delta=0.1'>+</a></div>");
+            "<button class='btn' type='button' onclick='sendNudge(\"hysteresis\",-0.1)'>-</button>"
+            "<button class='btn' type='button' onclick='sendNudge(\"hysteresis\",0.1)'>+</button></div>");
 
   // Boost minutes
   html += F("<div class='grid'><label>Boost (min)</label>"
             "<input name='boostMinutes' type='number' step='1' min='0' max='240' value='");
   html += String(getBoostMinutes());
   html += F("'>"
-            "<a class='btn' href='/nudge?field=boostMinutes&delta=-5'>-</a>"
-            "<a class='btn' href='/nudge?field=boostMinutes&delta=5'>+</a></div>");
+            "<button class='btn' type='button' onclick='sendNudge(\"boostMinutes\",-5)'>-</button>"
+            "<button class='btn' type='button' onclick='sendNudge(\"boostMinutes\",5)'>+</button></div>");
 
   // Boost control
   if (getControlMode() == MODE_BOOST)
@@ -297,11 +296,9 @@ static void renderIndex()
     html += String((int)remaining);
     html += F(" min remaining</p>");
   }
-  html += F("<form method='POST' action='/boost'>");
   html += F("<div class='grid'><label>Boost</label>"
-            "<button class='btn' type='submit'>Start</button>"
+            "<button class='btn' type='button' onclick='sendBoost()'>Start</button>"
             "<span></span><span></span></div>");
-  html += F("</form>");
   html += F("</div>");  // close card
 
   // History-Card (24h)
@@ -905,11 +902,47 @@ function toggleTheme()
   localStorage.setItem('theme', next);
 }
 
+function requestAction(url, options)
+{
+  return fetch(url, options || {})
+    .then(function()
+    {
+      window.location.reload();
+    })
+    .catch(function(err)
+    {
+      console.error('Action failed', err);
+    });
+}
+
+function sendNudge(field, delta)
+{
+  var params = '?field=' + encodeURIComponent(field) + '&delta=' + encodeURIComponent(delta);
+  return requestAction('/nudge' + params);
+}
+
+function sendBoost()
+{
+  return requestAction('/boost', { method: 'POST' });
+}
+
+function sendHeaterOff()
+{
+  if (!confirm('Heizung wirklich ausschalten?'))
+  {
+    return Promise.resolve();
+  }
+  return requestAction('/heaterOff', { method: 'POST' });
+}
+
 )JS";
   html += F("</script>");
 
   html += F("</body></html>");
 
+  webServer.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  webServer.sendHeader("Pragma", "no-cache");
+  webServer.sendHeader("Expires", "0");
   webServer.send(200, "text/html; charset=utf-8", html);
 }
 
