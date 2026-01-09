@@ -60,85 +60,6 @@ static int parseTimeMinutes(const String &val)
   return h * 60 + m;
 }
 
-function formatTs(tsSec)
-{
-  const d = new Date(tsSec * 1000);
-
-  return d.toLocaleDateString("de-DE",
-  {
-    day:   "2-digit",
-    month: "2-digit"
-  }) + " " +
-  d.toLocaleTimeString("de-DE",
-  {
-    hour:   "2-digit",
-    minute: "2-digit"
-  });
-}
-
-function buildHistoryTable(history)
-{
-  const HEATER_OFF = 0;
-  const HEATER_ON  = 1;
-
-  let state = HEATER_OFF;
-
-  let onTs = 0;
-  let onTemp = 0;
-  let onSp = 0;
-  let onHy = 0;
-
-  const rows = [];
-
-  history.sort((a, b) => a.ts - b.ts);
-
-  for (const s of history)
-  {
-    const heaterOn = (s.h !== 0);
-
-    switch (state)
-    {
-      case HEATER_OFF:
-      {
-        if (heaterOn)
-        {
-          onTs   = s.ts;
-          onTemp = s.t;
-          onSp   = s.sp;
-          onHy   = s.hy;
-          state  = HEATER_ON;
-        }
-        break;
-      }
-
-      case HEATER_ON:
-      {
-        if (!heaterOn)
-        {
-          const offTs   = s.ts;
-          const offTemp = s.t;
-
-          rows.push(
-          {
-            onTime:  formatTs(onTs),
-            offTime: formatTs(offTs),
-            tempOn:  (onTemp  / 100.0).toFixed(1) + " °C",
-            tempOff: (offTemp / 100.0).toFixed(1) + " °C",
-            thresh:  ((onSp - onHy) / 100.0).toFixed(1)
-                      + " °C / "
-                      + (onSp / 100.0).toFixed(1) + " °C"
-          });
-
-          state = HEATER_OFF;
-        }
-        break;
-      }
-    }
-  }
-
-  return rows;
-}
-
 /***************** redirectToRoot *********************************************
  * params: none
  * return: void
@@ -385,6 +306,79 @@ function nudge(field,delta)
     .catch(function(){window.location.replace('/');});
 }
 
+function formatTs(tsSec)
+{
+  var d = new Date(tsSec * 1000);
+  return d.toLocaleDateString("de-DE",
+  {
+    day:   "2-digit",
+    month: "2-digit"
+  }) + " " +
+  d.toLocaleTimeString("de-DE",
+  {
+    hour:   "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function normalizeHistory(history)
+{
+  return history.map(function(s){
+    return {
+      ts: s.ts,
+      tC: s.t / 100.0,
+      spC: s.sp / 100.0,
+      hyC: s.hy / 100.0,
+      h: s.h
+    };
+  }).sort(function(a, b){ return a.ts - b.ts; });
+}
+
+function buildHistoryTable(history)
+{
+  var HEATER_OFF = 0;
+  var HEATER_ON  = 1;
+
+  var state = HEATER_OFF;
+  var onTs = 0;
+  var onTemp = 0;
+  var onSp = 0;
+  var onHy = 0;
+  var rows = [];
+
+  history.forEach(function(s){
+    var heaterOn = (s.h !== 0);
+    if (state === HEATER_OFF)
+    {
+      if (heaterOn)
+      {
+        onTs = s.ts;
+        onTemp = s.tC;
+        onSp = s.spC;
+        onHy = s.hyC;
+        state = HEATER_ON;
+      }
+      return;
+    }
+
+    if (!heaterOn)
+    {
+      var offTs = s.ts;
+      var offTemp = s.tC;
+      rows.push({
+        onTime: formatTs(onTs),
+        offTime: formatTs(offTs),
+        tempOn: onTemp.toFixed(1) + " °C",
+        tempOff: offTemp.toFixed(1) + " °C",
+        thresh: (onSp - onHy).toFixed(1) + " °C / " + onSp.toFixed(1) + " °C"
+      });
+      state = HEATER_OFF;
+    }
+  });
+
+  return rows;
+}
+
 (function(){
   var svg = document.getElementById('histSvg');
   var tableWrap = document.getElementById('histTableWrap');
@@ -472,10 +466,16 @@ function nudge(field,delta)
 
   function renderTable(rows)
   {
-    var html = "<table><thead><tr><th>Time</th><th>Temp</th><th>Heater</th></tr></thead><tbody>";
-    rows.forEach(function(r){
-      var heater = r.h ? "ON" : "OFF";
-      html += "<tr><td>" + r.ts + "</td><td>" + r.t.toFixed(1) + "</td><td>" + heater + "</td></tr>";
+    var tableRows = buildHistoryTable(rows);
+    if (!tableRows.length)
+    {
+      tableWrap.innerHTML = "<div class='muted'>Keine Heizphasen im Verlauf</div>";
+      return;
+    }
+
+    var html = "<table><thead><tr><th>Ein</th><th>Aus</th><th>Temp Ein</th><th>Temp Aus</th><th>Schwelle</th></tr></thead><tbody>";
+    tableRows.forEach(function(r){
+      html += "<tr><td>" + r.onTime + "</td><td>" + r.offTime + "</td><td>" + r.tempOn + "</td><td>" + r.tempOff + "</td><td>" + r.thresh + "</td></tr>";
     });
     html += "</tbody></table>";
     tableWrap.innerHTML = html;
@@ -502,9 +502,13 @@ function nudge(field,delta)
     var maxT = -999;
 
     rows.forEach(function(r){
-      if (r.t < minT) { minT = r.t; }
-      if (r.t > maxT) { maxT = r.t; }
+      if (r.tC < minT) { minT = r.tC; }
+      if (r.tC > maxT) { maxT = r.tC; }
     });
+    if (schedCfg.daySet < minT) { minT = schedCfg.daySet; }
+    if (schedCfg.daySet > maxT) { maxT = schedCfg.daySet; }
+    if (schedCfg.nightSet < minT) { minT = schedCfg.nightSet; }
+    if (schedCfg.nightSet > maxT) { maxT = schedCfg.nightSet; }
 
     if (maxT - minT < 0.2)
     {
@@ -548,20 +552,21 @@ function nudge(field,delta)
     var d = "";
     rows.forEach(function(r, i){
       var x = xAt(i);
-      var y = yAt(r.t);
+      var y = yAt(r.tC);
       d += (i === 0 ? "M" : "L") + x.toFixed(2) + "," + y.toFixed(2);
     });
     drawPath(d, 'currentColor', 2);
 
     // X labels
-    drawText(x0, h - 10, rows[0].ts, 'muted');
-    drawText(x0 + plotW - 80, h - 10, rows[rows.length - 1].ts, 'muted');
+    drawText(x0, h - 10, formatTs(rows[0].ts), 'muted');
+    drawText(x0 + plotW - 80, h - 10, formatTs(rows[rows.length - 1].ts), 'muted');
   }
 
   fetchHistory()
     .then(function(data){
-      renderTable(data);
-      renderChart(data);
+      var history = normalizeHistory(data || []);
+      renderTable(history);
+      renderChart(history);
     })
     .catch(function(){
       tableWrap.innerHTML = "<div class='muted'>History load failed</div>";
