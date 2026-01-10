@@ -174,12 +174,13 @@ static void renderIndex()
     ".viewBtns .btn{padding:.35rem .7rem;font-size:.9rem;}"
     "table{width:100%;border-collapse:collapse;font-size:.92rem;}"
     "th,td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left;}"
-    "#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.6;}"
+    "#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}"
+    "#histSvg .temp-glow{stroke:rgba(251,146,60,.45);fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:blur(0.4px);}"
     "#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
     "#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
-    "#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:3,2;opacity:.9;}"
+    "#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:4,4;opacity:.8;}"
     "#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}"
-    "#histSvg .grid-line{stroke:rgba(148,163,184,.45);stroke-width:1;fill:none;}"
+    "#histSvg .grid-line{stroke:rgba(148,163,184,.25);stroke-width:1;fill:none;}"
     "#histSvg .bg{fill:var(--bg);}"
     "#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}"
     "#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}"
@@ -378,6 +379,21 @@ function formatTs(tsSec)
   });
 }
 
+function formatTimeShort(tsSec)
+{
+  var d = new Date(tsSec * 1000);
+  return d.toLocaleTimeString("de-DE",
+  {
+    hour:   "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function formatTemp(val)
+{
+  return Number(val).toFixed(1) + " °C";
+}
+
 function normalizeHistory(history)
 {
   return history.map(function(s){
@@ -468,7 +484,7 @@ function buildHistoryTable(history)
 
   function fetchHistory()
   {
-    return fetch('/history.json', { cache: 'no-store' })
+    return fetch('/history.json?days=1', { cache: 'no-store' })
       .then(function(r){ return r.json(); });
   }
 
@@ -555,24 +571,61 @@ function buildHistoryTable(history)
     var height = 320;
     var padL = 50, padR = 10, padT = 10, padB = 30;
 
+    var maxTs = Number(rows[rows.length - 1].ts) || 0;
+    var minTs = maxTs > 86400 ? (maxTs - 86400) : 0;
+
+    var filtered = [];
+    var lastBefore = null;
+    for (var i = 0; i < rows.length; i++)
+    {
+      var r = rows[i];
+      var tsVal = Number(r.ts) || 0;
+      if (tsVal < minTs)
+      {
+        lastBefore = r;
+        continue;
+      }
+      if (tsVal > maxTs)
+      {
+        continue;
+      }
+      filtered.push(r);
+    }
+
+    if (lastBefore && filtered.length)
+    {
+      filtered.unshift({
+        ts: minTs,
+        tC: lastBefore.tC,
+        spC: lastBefore.spC,
+        hyC: lastBefore.hyC,
+        h: lastBefore.h
+      });
+    }
+
+    if (!filtered.length)
+    {
+      filtered = rows.slice(-1);
+    }
+
     var temps = [];
     var uppers = [];
     var lowers = [];
     var tsList = [];
     var onList = [];
 
-    for (var i = 0; i < rows.length; i++)
+    for (var j = 0; j < filtered.length; j++)
     {
-      var r = rows[i];
-      var tVal = Number(r.tC) || 0;
-      var spVal = Number(r.spC) || 0;
-      var hyVal = Number(r.hyC) || 0;
-      var on = r.h ? true : false;
+      var fr = filtered[j];
+      var tVal = Number(fr.tC) || 0;
+      var spVal = Number(fr.spC) || 0;
+      var hyVal = Number(fr.hyC) || 0;
+      var on = fr.h ? true : false;
 
       temps.push(tVal);
       uppers.push(spVal + hyVal);
       lowers.push(spVal - hyVal);
-      tsList.push(Number(r.ts) || 0);
+      tsList.push(Number(fr.ts) || 0);
       onList.push(on);
     }
 
@@ -591,11 +644,11 @@ function buildHistoryTable(history)
     }
     var vSpan = maxV - minV;
 
-    var minTs = tsList[0];
-    var maxTs = tsList[tsList.length - 1];
-    if (maxTs === minTs)
+    minTs = minTs || tsList[0];
+    maxTs = maxTs || tsList[tsList.length - 1];
+    if (maxTs <= minTs)
     {
-      maxTs = minTs + 60;
+      maxTs = minTs + 86400;
     }
     var tsSpan = maxTs - minTs;
 
@@ -693,11 +746,10 @@ function buildHistoryTable(history)
     axisX.setAttribute('class', 'axis');
     svg.appendChild(axisX);
 
-    var maxXTicks = 6;
-    for (var t = 0; t < maxXTicks; t++)
+    var tickStep = 4 * 3600;
+    var firstTick = Math.ceil(minTs / tickStep) * tickStep;
+    for (var ts = firstTick; ts <= maxTs + 1; ts += tickStep)
     {
-      var rel = (maxXTicks === 1) ? 0 : (t / (maxXTicks - 1));
-      var ts = minTs + rel * tsSpan;
       var x = xForTs(ts);
       var tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
       tick.setAttribute('x1', x);
@@ -772,8 +824,40 @@ function buildHistoryTable(history)
       return d;
     }
 
+    function buildSmoothPath(vals)
+    {
+      if (!vals.length)
+      {
+        return '';
+      }
+      var pts = [];
+      for (var i = 0; i < vals.length; i++)
+      {
+        pts.push({ x: xForTs(tsList[i]), y: yFor(vals[i]) });
+      }
+      var d = 'M' + pts[0].x + ' ' + pts[0].y;
+      for (var j = 0; j < pts.length - 1; j++)
+      {
+        var p0 = j > 0 ? pts[j - 1] : pts[j];
+        var p1 = pts[j];
+        var p2 = pts[j + 1];
+        var p3 = (j + 2 < pts.length) ? pts[j + 2] : p2;
+        var cp1x = p1.x + (p2.x - p0.x) / 6;
+        var cp1y = p1.y + (p2.y - p0.y) / 6;
+        var cp2x = p2.x - (p3.x - p1.x) / 6;
+        var cp2y = p2.y - (p3.y - p1.y) / 6;
+        d += ' C ' + cp1x + ' ' + cp1y + ' ' + cp2x + ' ' + cp2y + ' ' + p2.x + ' ' + p2.y;
+      }
+      return d;
+    }
+
+    var pathGlow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    pathGlow.setAttribute('d', buildSmoothPath(temps));
+    pathGlow.setAttribute('class', 'temp-glow');
+    svg.appendChild(pathGlow);
+
     var pathTemp = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    pathTemp.setAttribute('d', buildPath(temps));
+    pathTemp.setAttribute('d', buildSmoothPath(temps));
     pathTemp.setAttribute('class', 'temp-line');
     svg.appendChild(pathTemp);
 
