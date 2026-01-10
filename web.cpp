@@ -1,5 +1,6 @@
 #include "web.h"
 #include <ESP8266WebServer.h>
+#include <ESP8266WiFi.h>
 #include "config.h"
 #include "control.h"
 #include "sensor.h"
@@ -60,85 +61,6 @@ static int parseTimeMinutes(const String &val)
   return h * 60 + m;
 }
 
-function formatTs(tsSec)
-{
-  const d = new Date(tsSec * 1000);
-
-  return d.toLocaleDateString("de-DE",
-  {
-    day:   "2-digit",
-    month: "2-digit"
-  }) + " " +
-  d.toLocaleTimeString("de-DE",
-  {
-    hour:   "2-digit",
-    minute: "2-digit"
-  });
-}
-
-function buildHistoryTable(history)
-{
-  const HEATER_OFF = 0;
-  const HEATER_ON  = 1;
-
-  let state = HEATER_OFF;
-
-  let onTs = 0;
-  let onTemp = 0;
-  let onSp = 0;
-  let onHy = 0;
-
-  const rows = [];
-
-  history.sort((a, b) => a.ts - b.ts);
-
-  for (const s of history)
-  {
-    const heaterOn = (s.h !== 0);
-
-    switch (state)
-    {
-      case HEATER_OFF:
-      {
-        if (heaterOn)
-        {
-          onTs   = s.ts;
-          onTemp = s.t;
-          onSp   = s.sp;
-          onHy   = s.hy;
-          state  = HEATER_ON;
-        }
-        break;
-      }
-
-      case HEATER_ON:
-      {
-        if (!heaterOn)
-        {
-          const offTs   = s.ts;
-          const offTemp = s.t;
-
-          rows.push(
-          {
-            onTime:  formatTs(onTs),
-            offTime: formatTs(offTs),
-            tempOn:  (onTemp  / 100.0).toFixed(1) + " °C",
-            tempOff: (offTemp / 100.0).toFixed(1) + " °C",
-            thresh:  ((onSp - onHy) / 100.0).toFixed(1)
-                      + " °C / "
-                      + (onSp / 100.0).toFixed(1) + " °C"
-          });
-
-          state = HEATER_OFF;
-        }
-        break;
-      }
-    }
-  }
-
-  return rows;
-}
-
 /***************** redirectToRoot *********************************************
  * params: none
  * return: void
@@ -184,7 +106,7 @@ static void renderIndex()
 
   html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
   html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  html += F("<title>Heating Controller &ndash; ");
+  html += F("<title>Heizungssteuerung &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
 
@@ -202,7 +124,9 @@ static void renderIndex()
     "h2{margin-bottom:.2rem;}"
     ".card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;"
     "box-shadow:var(--shadow-soft);margin-bottom:1rem;}"
-    ".grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}"
+    ".grid{display:grid;grid-template-columns:12rem minmax(0,1fr) 2.4rem 2.4rem;gap:.5rem;align-items:center;}"
+    ".grid input{height:2.2rem;padding:.4rem .6rem;}"
+    ".grid .btn{height:2.2rem;min-width:2.2rem;padding:0;display:inline-flex;align-items:center;justify-content:center;}"
     ".btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);"
     "cursor:pointer;transition:transform .08s ease, background .15s ease,border-color .15s ease;}"
     ".btn:hover{background:rgba(122,162,255,.12);border-color:rgba(122,162,255,.55);}"
@@ -214,7 +138,7 @@ static void renderIndex()
     ".status-bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08);}"
     ".muted{color:var(--muted);}"
     ".split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}"
-    "@media(max-width:840px){.split{grid-template-columns:1fr;}.grid{grid-template-columns:10rem 1fr auto auto;}}"
+    "@media(max-width:840px){.split{grid-template-columns:1fr;}.grid{grid-template-columns:10rem minmax(0,1fr) 2.4rem 2.4rem;}}"
     ".pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;border:1px solid var(--border);font-size:.85rem;color:var(--muted);}"
     ".hr{height:1px;background:var(--border);margin:.8rem 0;opacity:.8;}"
     "details summary{cursor:pointer;color:var(--accent);}"
@@ -232,30 +156,43 @@ static void renderIndex()
   // Header card
   html += F("<div class='card'>");
   html += F("<div class='status-row'>");
-  html += F("<div><h2>Heating Controller</h2><div class='muted small'>Room: ");
+  html += F("<div><h2>Heizungssteuerung</h2><div class='muted small'>Raum: ");
   html += getBaseTopic();
+  html += F(" &middot; Version: ");
+  html += APP_VERSION;
+  html += F(" &middot; Lokal: http://");
+  html += getHostLabel();
+  html += F(".local &middot; IP: ");
+  if (WiFi.isConnected())
+  {
+    html += WiFi.localIP().toString();
+  }
+  else
+  {
+    html += F("offline");
+  }
   html += F("</div></div>");
 
   html += F("<div class='status-item ");
   html += (heaterIsOn ? "status-ok" : "status-bad");
   html += F("'>🔥 ");
-  html += (heaterIsOn ? "Heater ON" : "Heater OFF");
+  html += (heaterIsOn ? "Heizung EIN" : "Heizung AUS");
   html += F("</div>");
 
   if (heaterIsOn)
   {
-    html += F("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heater OFF</button>");
+    html += F("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heizung ausschalten</button>");
   }
 
   // MQTT + time status
   html += F("<div class='status-item ");
   html += (mqttIsConnected() ? "status-ok" : "status-bad");
   html += F("'>MQTT ");
-  html += (mqttIsConnected() ? "Connected" : "Disconnected");
+  html += (mqttIsConnected() ? "Verbunden" : "Getrennt");
   html += F("</div>");
 
   html += F("<div class='status-item'>");
-  html += F("Temp: <b>");
+  html += F("Temperatur: <b>");
   html += String(t, 1);
   html += F("&deg;C</b>");
   html += F("</div>");
@@ -265,7 +202,7 @@ static void renderIndex()
 
   // Config card: schedule + setpoints
   html += F("<div class='card'>");
-  html += F("<h3>Schedule</h3>");
+  html += F("<h3>Zeitplan</h3>");
 
   html += F("<div class='split'>");
 
@@ -310,6 +247,9 @@ static void renderIndex()
   html += F("'>"
             "<button class='btn' type='button' onclick=\"nudge('hysteresis',-0.1)\">-</button>"
             "<button class='btn' type='button' onclick=\"nudge('hysteresis',0.1)\">+</button></div>");
+  html += F("<div class='muted small'>Einschalttemperatur: <b>");
+  html += String(getSetPoint() - getHysteresis(), 1);
+  html += F(" &deg;C</b> (Soll - Hysterese)</div>");
 
   // Boost minutes
   html += F("<div class='grid'><label>Boost (min)</label>"
@@ -327,28 +267,28 @@ static void renderIndex()
     if (end > now)
     {
       float remaining = (end - now) / 60000.0f;
-      html += F("<p>Boost active ~ ");
+      html += F("<p>Boost aktiv ~ ");
       html += String((int)remaining);
-      html += F(" min remaining</p>");
+      html += F(" min verbleibend</p>");
     }
   }
 
   html += F("<div>");
   html += F("<div class='grid'><label>Boost</label>"
-            "<button class='btn' type='button' onclick=\"postAction('/boost')\">Start</button>"
+            "<button class='btn' type='button' onclick=\"postAction('/boost')\">Starten</button>"
             "<span></span><span></span></div>");
   html += F("</div>");
   html += F("</div>");  // close card
 
   // History card
   html += F("<div class='card'>");
-  html += F("<div class='status-row'><h3>History</h3>");
+  html += F("<div class='status-row'><h3>Verlauf</h3>");
   html += F("<div class='viewBtns'>");
   html += F("<a href='/history.json?days=1'>"
-          "<button class='btn' type='button'>History (1 day)</button>"
+          "<button class='btn' type='button'>Verlauf (1 Tag)</button>"
           "</a>");
-  html += F("<button class='btn' type='button' data-view='chart'>Chart</button>");
-  html += F("<button class='btn' type='button' data-view='table'>Table</button>");
+  html += F("<button class='btn' type='button' data-view='chart'>Diagramm</button>");
+  html += F("<button class='btn' type='button' data-view='table'>Tabelle</button>");
   html += F("</div></div>");
 
   html += F("<div id='histChartWrap'>");
@@ -383,6 +323,79 @@ function nudge(field,delta)
   fetch('/nudge',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body,cache:'no-store'})
     .then(function(){window.location.replace('/');})
     .catch(function(){window.location.replace('/');});
+}
+
+function formatTs(tsSec)
+{
+  var d = new Date(tsSec * 1000);
+  return d.toLocaleDateString("de-DE",
+  {
+    day:   "2-digit",
+    month: "2-digit"
+  }) + " " +
+  d.toLocaleTimeString("de-DE",
+  {
+    hour:   "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function normalizeHistory(history)
+{
+  return history.map(function(s){
+    return {
+      ts: s.ts,
+      tC: s.t / 100.0,
+      spC: s.sp / 100.0,
+      hyC: s.hy / 100.0,
+      h: s.h
+    };
+  }).sort(function(a, b){ return a.ts - b.ts; });
+}
+
+function buildHistoryTable(history)
+{
+  var HEATER_OFF = 0;
+  var HEATER_ON  = 1;
+
+  var state = HEATER_OFF;
+  var onTs = 0;
+  var onTemp = 0;
+  var onSp = 0;
+  var onHy = 0;
+  var rows = [];
+
+  history.forEach(function(s){
+    var heaterOn = (s.h !== 0);
+    if (state === HEATER_OFF)
+    {
+      if (heaterOn)
+      {
+        onTs = s.ts;
+        onTemp = s.tC;
+        onSp = s.spC;
+        onHy = s.hyC;
+        state = HEATER_ON;
+      }
+      return;
+    }
+
+    if (!heaterOn)
+    {
+      var offTs = s.ts;
+      var offTemp = s.tC;
+      rows.push({
+        onTime: formatTs(onTs),
+        offTime: formatTs(offTs),
+        tempOn: onTemp.toFixed(1) + " °C",
+        tempOff: offTemp.toFixed(1) + " °C",
+        thresh: (onSp - onHy).toFixed(1) + " °C / " + onSp.toFixed(1) + " °C"
+      });
+      state = HEATER_OFF;
+    }
+  });
+
+  return rows;
 }
 
 (function(){
@@ -472,10 +485,16 @@ function nudge(field,delta)
 
   function renderTable(rows)
   {
-    var html = "<table><thead><tr><th>Time</th><th>Temp</th><th>Heater</th></tr></thead><tbody>";
-    rows.forEach(function(r){
-      var heater = r.h ? "ON" : "OFF";
-      html += "<tr><td>" + r.ts + "</td><td>" + r.t.toFixed(1) + "</td><td>" + heater + "</td></tr>";
+    var tableRows = buildHistoryTable(rows);
+    if (!tableRows.length)
+    {
+      tableWrap.innerHTML = "<div class='muted'>Keine Heizphasen im Verlauf</div>";
+      return;
+    }
+
+    var html = "<table><thead><tr><th>Ein</th><th>Aus</th><th>Temp Ein</th><th>Temp Aus</th><th>Schwelle</th></tr></thead><tbody>";
+    tableRows.forEach(function(r){
+      html += "<tr><td>" + r.onTime + "</td><td>" + r.offTime + "</td><td>" + r.tempOn + "</td><td>" + r.tempOff + "</td><td>" + r.thresh + "</td></tr>";
     });
     html += "</tbody></table>";
     tableWrap.innerHTML = html;
@@ -487,7 +506,7 @@ function nudge(field,delta)
 
     if (!rows || !rows.length)
     {
-      drawText(20, 40, "No history", "");
+      drawText(20, 40, "Kein Verlauf", "");
       return;
     }
 
@@ -502,9 +521,13 @@ function nudge(field,delta)
     var maxT = -999;
 
     rows.forEach(function(r){
-      if (r.t < minT) { minT = r.t; }
-      if (r.t > maxT) { maxT = r.t; }
+      if (r.tC < minT) { minT = r.tC; }
+      if (r.tC > maxT) { maxT = r.tC; }
     });
+    if (schedCfg.daySet < minT) { minT = schedCfg.daySet; }
+    if (schedCfg.daySet > maxT) { maxT = schedCfg.daySet; }
+    if (schedCfg.nightSet < minT) { minT = schedCfg.nightSet; }
+    if (schedCfg.nightSet > maxT) { maxT = schedCfg.nightSet; }
 
     if (maxT - minT < 0.2)
     {
@@ -548,25 +571,26 @@ function nudge(field,delta)
     var d = "";
     rows.forEach(function(r, i){
       var x = xAt(i);
-      var y = yAt(r.t);
+      var y = yAt(r.tC);
       d += (i === 0 ? "M" : "L") + x.toFixed(2) + "," + y.toFixed(2);
     });
     drawPath(d, 'currentColor', 2);
 
     // X labels
-    drawText(x0, h - 10, rows[0].ts, 'muted');
-    drawText(x0 + plotW - 80, h - 10, rows[rows.length - 1].ts, 'muted');
+    drawText(x0, h - 10, formatTs(rows[0].ts), 'muted');
+    drawText(x0 + plotW - 80, h - 10, formatTs(rows[rows.length - 1].ts), 'muted');
   }
 
   fetchHistory()
     .then(function(data){
-      renderTable(data);
-      renderChart(data);
+      var history = normalizeHistory(data || []);
+      renderTable(history);
+      renderChart(history);
     })
     .catch(function(){
-      tableWrap.innerHTML = "<div class='muted'>History load failed</div>";
+      tableWrap.innerHTML = "<div class='muted'>Verlauf konnte nicht geladen werden</div>";
       clearSvg();
-      drawText(20, 40, "History load failed", "");
+      drawText(20, 40, "Verlauf konnte nicht geladen werden", "");
     });
 
 })();
