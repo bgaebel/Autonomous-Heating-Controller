@@ -175,7 +175,7 @@ static void renderIndex()
     "table{width:100%;border-collapse:collapse;font-size:.92rem;}"
     "th,td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left;}"
     "#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}"
-    "#histSvg .temp-glow{stroke:rgba(251,146,60,.45);fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:blur(0.4px);}"
+    "#histSvg .temp-glow{stroke:rgba(251,146,60,.35);fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}"
     "#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
     "#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
     "#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:4,4;opacity:.8;}"
