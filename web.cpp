@@ -96,259 +96,81 @@ static String fmtTime(uint16_t minutes)
  * Renders status & configuration page, including current heater state (ON/OFF)
  * and the current room (Base-Topic). Sends UTF-8 so special chars render fine.
  ******************************************************************************/
-static void renderIndex()
+static const char pageHeadStart[] PROGMEM = R"HTML(
+<!DOCTYPE html><html><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<title>Heizungssteuerung &ndash; 
+)HTML";
+
+static const char pageHeadEnd[] PROGMEM = R"HTML(
+</title>
+<style>
+:root{--bg:#0b1220;--card:#101a33;--text:#e9eefc;--muted:#b7c2e8;--border:#223055;--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;--heat-band:rgba(239,68,68,0.16);--danger:var(--bad);--accent:#7aa2ff;--accent2:#64d2ff;--bad:#ff6b6b;--ok:#35d07f;--shadow-soft:0 10px 30px rgba(0,0,0,.35);}
+@media (prefers-color-scheme: light){:root{--bg:#f6f7fb;--card:#ffffff;--text:#1a2340;--muted:#58607a;--border:#d9ddec;--shadow-soft:0 8px 24px rgba(16,26,51,.12);}}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;margin:1rem;background:var(--bg);color:var(--text);transition:background .25s ease,color .25s ease;}
+h2{margin-bottom:.2rem;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;box-shadow:var(--shadow-soft);margin-bottom:1rem;}
+.grid{display:grid;grid-template-columns:clamp(5.2rem,24vw,9.5rem) minmax(0,1fr) 2.6rem 2.6rem;column-gap:.4rem;row-gap:.55rem;align-items:center;}
+.grid>*{min-width:0;}
+.grid label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.grid input{height:2.2rem;padding:.4rem .6rem;min-width:0;box-sizing:border-box;}
+.grid .btn{height:2.3rem;min-width:2.3rem;width:2.3rem;padding:0;display:inline-flex;align-items:center;justify-content:center;}
+.btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);cursor:pointer;transition:transform .08s ease, background .15s ease,border-color .15s ease;min-height:2.3rem;}
+.btn:hover{background:rgba(122,162,255,.12);border-color:rgba(122,162,255,.55);}
+.btn:active{transform:translateY(1px);}
+input{padding:.45rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);width:100%;box-sizing:border-box;}
+.status-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+.status-item{padding:.5rem .75rem;border-radius:.7rem;border:1px solid var(--border);}
+.status-ok{border-color:rgba(53,208,127,.5);background:rgba(53,208,127,.08);}
+.status-bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08);}
+.muted{color:var(--muted);}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:840px){.split{grid-template-columns:1fr;}.grid{grid-template-columns:clamp(5.2rem,32vw,9rem) minmax(0,1fr) 2.4rem 2.4rem;column-gap:.4rem;row-gap:.45rem;}.card{padding:.9rem;}.grid input{height:2.1rem;}.grid .btn{height:2.2rem;min-width:2.2rem;width:2.2rem;}}
+@media(max-width:480px){.grid{grid-template-columns:clamp(4.8rem,34vw,7.5rem) minmax(0,1fr) 2.2rem 2.2rem;column-gap:.35rem;row-gap:.4rem;}th,td{padding:.35rem .3rem;}}
+.pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;border:1px solid var(--border);font-size:.85rem;color:var(--muted);}
+.hr{height:1px;background:var(--border);margin:.8rem 0;opacity:.8;}
+details summary{cursor:pointer;color:var(--accent);}
+a{color:var(--accent2);text-decoration:none}
+.small{font-size:.9rem;}
+.viewBtns{display:flex;gap:.5rem;flex-wrap:wrap;margin:.4rem 0 .8rem 0;}
+.viewBtns .btn{padding:.35rem .7rem;font-size:.9rem;}
+table{width:100%;border-collapse:collapse;font-size:.92rem;}
+th,td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left;}
+#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+#histSvg .temp-glow{stroke:rgba(251,146,60,.35);fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;}
+#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}
+#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}
+#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:4,4;opacity:.8;}
+#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}
+#histSvg .grid-line{stroke:rgba(148,163,184,.25);stroke-width:1;fill:none;}
+#histSvg .bg{fill:var(--bg);}
+#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}
+#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}
+#histSvg .hover-dot{fill:var(--bad);}
+#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}
+.heat-on-band{fill:var(--heat-band);}
+/* remove number input spinners */
+input[type=number]
 {
-  const float t = getLastTemperature();
-  const bool heaterIsOn = isHeaterOn();
+  -moz-appearance: textfield; /* Firefox */
+}
 
-  String html;
-  html.reserve(8192);
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button
+{
+  -webkit-appearance: none;
+  margin: 0;
+}
 
-  html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
-  html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  html += F("<title>Heizungssteuerung &ndash; ");
-  html += getBaseTopic();
-  html += F("</title>");
+</style>
+</head><body>
+)HTML";
 
-  // CSS
-  html += F(
-    "<style>"
-    ":root{--bg:#0b1220;--card:#101a33;--text:#e9eefc;--muted:#b7c2e8;--border:#223055;--temp-line:#fb923c;--upper-line:#22c55e;--lower-line:#60a5fa;--phase-line:#a855f7;--heat-band:rgba(239,68,68,0.16);--danger:var(--bad);"
-    "--accent:#7aa2ff;--accent2:#64d2ff;--bad:#ff6b6b;--ok:#35d07f;"
-    "--shadow-soft:0 10px 30px rgba(0,0,0,.35);}"
-    "@media (prefers-color-scheme: light){:root{--bg:#f6f7fb;--card:#ffffff;--text:#1a2340;--muted:#58607a;--border:#d9ddec;"
-    "--shadow-soft:0 8px 24px rgba(16,26,51,.12);}}"
-    "body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji;"
-    "margin:1rem;background:var(--bg);color:var(--text);"
-    "transition:background .25s ease,color .25s ease;}"
-    "h2{margin-bottom:.2rem;}"
-    ".card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;"
-    "box-shadow:var(--shadow-soft);margin-bottom:1rem;}"
+static const char pageTail[] PROGMEM = R"HTML(
+</body></html>
+)HTML";
 
-    /* Grid: label | input | - | + */
-    ".grid{display:grid;"
-    "grid-template-columns:clamp(6.5rem,30vw,12rem) minmax(0,1fr) 2.4rem 2.4rem;"
-    "column-gap:.55rem;row-gap:.55rem;align-items:center;}"
-    ".grid>*{min-width:0;}"
-    ".grid label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}"
-
-    ".grid input{height:2.2rem;padding:.4rem .6rem;min-width:0;box-sizing:border-box;}"
-    ".grid .btn{height:2.2rem;min-width:2.2rem;width:2.2rem;padding:0;display:inline-flex;align-items:center;justify-content:center;}"
-
-    ".btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);"
-    "cursor:pointer;transition:transform .08s ease, background .15s ease,border-color .15s ease;}"
-    ".btn:hover{background:rgba(122,162,255,.12);border-color:rgba(122,162,255,.55);}"
-    ".btn:active{transform:translateY(1px);}"
-    "input{padding:.45rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);width:100%;box-sizing:border-box;}"
-
-    ".status-row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;justify-content:space-between;}"
-    ".status-item{padding:.5rem .75rem;border-radius:.7rem;border:1px solid var(--border);}"
-    ".status-ok{border-color:rgba(53,208,127,.5);background:rgba(53,208,127,.08);}"
-    ".status-bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08);}"
-    ".muted{color:var(--muted);}"
-    ".split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}"
-
-    /* Tablet/Phone: weniger Luft, robustere Spalten */
-    "@media(max-width:840px){"
-      ".split{grid-template-columns:1fr;}"
-      ".grid{grid-template-columns:clamp(6.2rem,34vw,10rem) minmax(0,1fr) 2.2rem 2.2rem;"
-      "column-gap:.45rem;row-gap:.45rem;}"
-      ".card{padding:.9rem;}"
-      ".grid input{height:2.1rem;}"
-      ".grid .btn{height:2.1rem;min-width:2.1rem;width:2.1rem;}"
-    "}"
-
-    /* Sehr schmal: Label nicht erzwingen -> mehr Platz fürs Input, weniger Abstand */
-    "@media(max-width:480px){"
-      ".grid{grid-template-columns:clamp(5.6rem,36vw,8.5rem) minmax(0,1fr) 2.1rem 2.1rem;"
-      "column-gap:.4rem;row-gap:.4rem;}"
-      "th,td{padding:.35rem .3rem;}"
-    "}"
-
-    ".pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;border:1px solid var(--border);font-size:.85rem;color:var(--muted);}"
-    ".hr{height:1px;background:var(--border);margin:.8rem 0;opacity:.8;}"
-    "details summary{cursor:pointer;color:var(--accent);}"
-    "a{color:var(--accent2);text-decoration:none}"
-    ".small{font-size:.9rem;}"
-    ".viewBtns{display:flex;gap:.5rem;flex-wrap:wrap;margin:.4rem 0 .8rem 0;}"
-    ".viewBtns .btn{padding:.35rem .7rem;font-size:.9rem;}"
-    "table{width:100%;border-collapse:collapse;font-size:.92rem;}"
-    "th,td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left;}"
-    "#histSvg .temp-line{stroke:var(--temp-line);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}"
-    "#histSvg .temp-glow{stroke:rgba(251,146,60,.45);fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;filter:blur(0.4px);}"
-    "#histSvg .upper-line{stroke:var(--upper-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
-    "#histSvg .lower-line{stroke:var(--lower-line);fill:none;stroke-width:1;stroke-dasharray:4,4;}"
-    "#histSvg .phase-line{stroke:var(--phase-line);fill:none;stroke-width:1;stroke-dasharray:4,4;opacity:.8;}"
-    "#histSvg .axis{stroke:#6b7280;stroke-width:1;fill:none;}"
-    "#histSvg .grid-line{stroke:rgba(148,163,184,.25);stroke-width:1;fill:none;}"
-    "#histSvg .bg{fill:var(--bg);}"
-    "#histSvg .axis-label{fill:var(--muted);font-size:10px;font-family:sans-serif;}"
-    "#histSvg .hover-line{stroke:#e5e7eb;stroke-width:1;stroke-dasharray:2,2;}"
-    "#histSvg .hover-dot{fill:var(--bad);}"
-    "#histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}"
-    ".heat-on-band{fill:var(--heat-band);}"
-    "</style>"
-  );
-
-  html += F("</head><body>");
-
-  // Header card
-  html += F("<div class='card'>");
-  html += F("<div class='status-row'>");
-  html += F("<div><h2>Heizungssteuerung</h2><div class='muted small'>Raum: ");
-  html += getBaseTopic();
-  html += F(" &middot; Version: ");
-  html += APP_VERSION;
-  html += F(" &middot; Lokal: http://");
-  html += getHostLabel();
-  html += F(".local &middot; IP: ");
-  if (WiFi.isConnected())
-  {
-    html += WiFi.localIP().toString();
-  }
-  else
-  {
-    html += F("offline");
-  }
-  html += F("</div></div>");
-
-  html += F("<div class='status-item ");
-  html += (heaterIsOn ? "status-ok" : "status-bad");
-  html += F("'>🔥 ");
-  html += (heaterIsOn ? "Heizung EIN" : "Heizung AUS");
-  html += F("</div>");
-
-  if (heaterIsOn)
-  {
-    html += F("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heizung ausschalten</button>");
-  }
-
-  // MQTT + time status
-  html += F("<div class='status-item ");
-  html += (mqttIsConnected() ? "status-ok" : "status-bad");
-  html += F("'>MQTT ");
-  html += (mqttIsConnected() ? "Verbunden" : "Getrennt");
-  html += F("</div>");
-
-  html += F("<div class='status-item'>");
-  html += F("Temperatur: <b>");
-  html += String(t, 1);
-  html += F("&deg;C</b>");
-  html += F("</div>");
-
-  html += F("</div>");  // status-row
-  html += F("</div>");  // header card
-
-  // Config card: schedule + setpoints
-  html += F("<div class='card'>");
-  html += F("<h3>Zeitplan</h3>");
-
-  html += F("<div class='split'>");
-
-  // Tagesbereich
-  html += F("<div class='card'><h3>Tag</h3>");
-  html += F("<div class='grid'><label>Soll (°C)</label>"
-            "<input name='daySetPoint' type='number' step='0.1' min='5' max='35' value='");
-  html += String(getDaySetPoint(), 1);
-  html += F("'>"
-            "<button class='btn' type='button' onclick=\"nudge('daySetPoint',-0.5)\">-</button>"
-            "<button class='btn' type='button' onclick=\"nudge('daySetPoint',0.5)\">+</button></div>");
-  html += F("<div class='grid'><label>Beginn</label>"
-            "<input name='dayStart' type='time' step='300' value='");
-  html += fmtTime(getDayStartMinutes());
-  html += F("'>"
-            "<span></span><span></span></div>");
-  html += F("</div>");
-
-  // Nachtbereich
-  html += F("<div class='card'><h3>Nacht</h3>");
-  html += F("<div class='grid'><label>Soll (°C)</label>"
-            "<input name='nightSetPoint' type='number' step='0.1' min='5' max='35' value='");
-  html += String(getNightSetPoint(), 1);
-  html += F("'>"
-            "<button class='btn' type='button' onclick=\"nudge('nightSetPoint',-0.5)\">-</button>"
-            "<button class='btn' type='button' onclick=\"nudge('nightSetPoint',0.5)\">+</button></div>");
-  html += F("<div class='grid'><label>Beginn</label>"
-            "<input name='nightStart' type='time' step='300' value='");
-  html += fmtTime(getNightStartMinutes());
-  html += F("'>"
-            "<span></span><span></span></div>");
-  html += F("</div>");
-
-  html += F("</div>");  // split
-
-  html += F("<div class='hr'></div>");
-
-  // Hysteresis
-  html += F("<div class='grid'><label>Hysterese (°C)</label>"
-            "<input name='hysteresis' type='number' step='0.1' min='0.1' max='5.0' value='");
-  html += String(getHysteresis(), 1);
-  html += F("'>"
-            "<button class='btn' type='button' onclick=\"nudge('hysteresis',-0.1)\">-</button>"
-            "<button class='btn' type='button' onclick=\"nudge('hysteresis',0.1)\">+</button></div>");
-  html += F("<div class='muted small'>Einschalttemperatur: <b>");
-  html += String(getSetPoint(), 1);
-  html += F(" &deg;C</b> (Soll - Hysterese)</div>");
-
-  // Boost minutes
-  html += F("<div class='grid'><label>Boost (min)</label>"
-            "<input name='boostMinutes' type='number' step='1' min='0' max='240' value='");
-  html += String(getBoostMinutes());
-  html += F("'>"
-            "<button class='btn' type='button' onclick=\"nudge('boostMinutes',-5)\">-</button>"
-            "<button class='btn' type='button' onclick=\"nudge('boostMinutes',5)\">+</button></div>");
-
-  // Boost control
-  if (getControlMode() == MODE_BOOST)
-  {
-    unsigned long now = millis();
-    unsigned long end = getBoostEndTime();
-    if (end > now)
-    {
-      float remaining = (end - now) / 60000.0f;
-      html += F("<p>Boost aktiv ~ ");
-      html += String((int)remaining);
-      html += F(" min verbleibend</p>");
-    }
-  }
-
-  html += F("<div>");
-  html += F("<div class='grid'><label>Boost</label>"
-            "<button class='btn' type='button' onclick=\"postAction('/boost')\">Starten</button>"
-            "<span></span><span></span></div>");
-  html += F("</div>");
-  html += F("</div>");  // close card
-
-  // History card
-  html += F("<div class='card'>");
-  html += F("<div class='status-row'><h3>Verlauf</h3>");
-  html += F("<div class='viewBtns'>");
-  html += F("<a href='/history.json?days=1'>"
-          "<button class='btn' type='button'>Verlauf (1 Tag)</button>"
-          "</a>");
-  html += F("<button class='btn' type='button' data-view='chart'>Diagramm</button>");
-  html += F("<button class='btn' type='button' data-view='table'>Tabelle</button>");
-  html += F("</div></div>");
-
-  html += F("<div id='histChartWrap'>");
-  html += F("<svg id='histSvg' viewBox='0 0 600 320' preserveAspectRatio='xMidYMid meet' style='width:100%;height:auto;border:1px solid var(--border);border-radius:.75rem;'></svg>");
-  html += F("</div>");
-
-  html += F("<div id='histTableWrap' style='display:none;'></div>");
-  html += F("</div>");  // history card
-
-  // JS
-  html += F("<script>");
-  html += F("const schedCfg={dayStart:");
-  html += String(getDayStartMinutes());
-  html += F(",nightStart:");
-  html += String(getNightStartMinutes());
-  html += F(",daySet:");
-  html += String(getDaySetPoint(), 1);
-  html += F(",nightSet:");
-  html += String(getNightSetPoint(), 1);
-  html += F("};\n");
-  html += R"JS(
+static const char pageScript[] PROGMEM = R"JS(
 function postAction(url)
 {
   fetch(url,{method:'POST',cache:'no-store'})
@@ -632,10 +454,10 @@ function buildHistoryTable(history)
     var allVals = temps.concat(uppers).concat(lowers);
     var minV = allVals[0];
     var maxV = allVals[0];
-    for (var j = 1; j < allVals.length; j++)
+    for (var k = 1; k < allVals.length; k++)
     {
-      if (allVals[j] < minV) { minV = allVals[j]; }
-      if (allVals[j] > maxV) { maxV = allVals[j]; }
+      if (allVals[k] < minV) { minV = allVals[k]; }
+      if (allVals[k] > maxV) { maxV = allVals[k]; }
     }
     if (maxV - minV < 0.5)
     {
@@ -673,7 +495,6 @@ function buildHistoryTable(history)
     bg.setAttribute('class', 'bg');
     svg.appendChild(bg);
 
-    // Heiz-Phasen als farbige Bänder hinter den Linien
     var segments = [];
     var segStart = null;
     for (var s = 0; s < tsList.length; s++)
@@ -714,11 +535,10 @@ function buildHistoryTable(history)
       svg.appendChild(band);
     }
 
-    // Y-Grid + Labels
     var yTicks = 5;
-    for (var k = 0; k < yTicks; k++)
+    for (var t = 0; t < yTicks; t++)
     {
-      var val = minV + (vSpan * (k / (yTicks - 1)));
+      var val = minV + (vSpan * (t / (yTicks - 1)));
       var y = yFor(val);
 
       var gl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -979,10 +799,153 @@ function buildHistoryTable(history)
 
 })();
 )JS";
-  html += F("</script>");
 
-  html += F("</body></html>");
-  webServer.send(200, "text/html; charset=utf-8", html);
+static void renderIndex()
+{
+  const float t = getLastTemperature();
+  const bool heaterIsOn = isHeaterOn();
+
+  webServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
+  webServer.send(200, "text/html; charset=utf-8", "");
+  webServer.sendContent_P(pageHeadStart);
+  webServer.sendContent(getBaseTopic());
+  webServer.sendContent_P(pageHeadEnd);
+
+  // Header card
+  webServer.sendContent_P(PSTR("<div class='card'><div class='status-row'><div><h2>Heizungssteuerung</h2><div class='muted small'>Raum: "));
+  webServer.sendContent(getBaseTopic());
+  webServer.sendContent_P(PSTR(" &middot; Version: "));
+  webServer.sendContent(APP_VERSION);
+  webServer.sendContent_P(PSTR(" &middot; Lokal: http://"));
+  webServer.sendContent(getHostLabel());
+  webServer.sendContent_P(PSTR(".local &middot; IP: "));
+  if (WiFi.isConnected())
+  {
+    webServer.sendContent(WiFi.localIP().toString());
+  }
+  else
+  {
+    webServer.sendContent_P(PSTR("offline"));
+  }
+  webServer.sendContent_P(PSTR("</div></div>"));
+
+  webServer.sendContent_P(PSTR("<div class='status-item "));
+  webServer.sendContent(heaterIsOn ? "status-ok" : "status-bad");
+  webServer.sendContent_P(PSTR("'>🔥 "));
+  webServer.sendContent(heaterIsOn ? "Heizung EIN" : "Heizung AUS");
+  webServer.sendContent_P(PSTR("</div>"));
+
+  if (heaterIsOn)
+  {
+    webServer.sendContent_P(PSTR("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heizung ausschalten</button>"));
+  }
+
+  // MQTT + time status
+  webServer.sendContent_P(PSTR("<div class='status-item "));
+  webServer.sendContent(mqttIsConnected() ? "status-ok" : "status-bad");
+  webServer.sendContent_P(PSTR("'>MQTT "));
+  webServer.sendContent(mqttIsConnected() ? "Verbunden" : "Getrennt");
+  webServer.sendContent_P(PSTR("</div>"));
+
+  webServer.sendContent_P(PSTR("<div class='status-item'>Temperatur: <b>"));
+  webServer.sendContent(String(t, 1));
+  webServer.sendContent_P(PSTR("&deg;C</b></div></div></div>"));
+
+  // Config card: schedule + setpoints
+  webServer.sendContent_P(PSTR("<div class='card'><h3>Zeitplan</h3><div class='split'>"));
+
+  // Tagesbereich
+  webServer.sendContent_P(PSTR("<div class='card'><h3>Tag</h3><div class='grid'><label>Soll (°C)</label>"
+                              "<input name='daySetPoint' type='number' step='0.5' min='5' max='35' value='"));
+  webServer.sendContent(String(getDaySetPoint(), 1));
+  webServer.sendContent_P(PSTR("'>"
+                              "<button class='btn' type='button' onclick=\"nudge('daySetPoint',-0.5)\">-</button>"
+                              "<button class='btn' type='button' onclick=\"nudge('daySetPoint',0.5)\">+</button></div>"
+                              "<div class='grid'><label>Beginn</label>"
+                              "<input name='dayStart' type='time' step='300' value='"));
+  webServer.sendContent(fmtTime(getDayStartMinutes()));
+  webServer.sendContent_P(PSTR("'>"
+                              "<span></span><span></span></div></div>"));
+
+  // Nachtbereich
+  webServer.sendContent_P(PSTR("<div class='card'><h3>Nacht</h3><div class='grid'><label>Soll (°C)</label>"
+                              "<input name='nightSetPoint' type='number' step='0.1' min='5' max='35' value='"));
+  webServer.sendContent(String(getNightSetPoint(), 1));
+  webServer.sendContent_P(PSTR("'>"
+                              "<button class='btn' type='button' onclick=\"nudge('nightSetPoint',-0.5)\">-</button>"
+                              "<button class='btn' type='button' onclick=\"nudge('nightSetPoint',0.5)\">+</button></div>"
+                              "<div class='grid'><label>Beginn</label>"
+                              "<input name='nightStart' type='time' step='300' value='"));
+  webServer.sendContent(fmtTime(getNightStartMinutes()));
+  webServer.sendContent_P(PSTR("'>"
+                              "<span></span><span></span></div></div>"));
+
+  webServer.sendContent_P(PSTR("</div><div class='hr'></div>"));
+
+  // Hysteresis
+  webServer.sendContent_P(PSTR("<div class='grid'><label>Hysterese (°C)</label>"
+                              "<input name='hysteresis' type='number' step='0.1' min='0.1' max='5.0' value='"));
+  webServer.sendContent(String(getHysteresis(), 1));
+  webServer.sendContent_P(PSTR("'>"
+                              "<button class='btn' type='button' onclick=\"nudge('hysteresis',-0.1)\">-</button>"
+                              "<button class='btn' type='button' onclick=\"nudge('hysteresis',0.1)\">+</button></div>"
+                              "<div class='muted small'>Einschalttemperatur: <b>"));
+  webServer.sendContent(String(getSetPoint(), 1));
+  webServer.sendContent_P(PSTR(" &deg;C</b> (Soll - Hysterese)</div>"));
+
+  // Boost minutes
+  webServer.sendContent_P(PSTR("<div class='grid'><label>Boost (min)</label>"
+                              "<input name='boostMinutes' type='number' step='1' min='0' max='240' value='"));
+  webServer.sendContent(String(getBoostMinutes()));
+  webServer.sendContent_P(PSTR("'>"
+                              "<button class='btn' type='button' onclick=\"nudge('boostMinutes',-5)\">-</button>"
+                              "<button class='btn' type='button' onclick=\"nudge('boostMinutes',5)\">+</button></div>"));
+
+  // Boost control
+  if (getControlMode() == MODE_BOOST)
+  {
+    unsigned long now = millis();
+    unsigned long end = getBoostEndTime();
+    if (end > now)
+    {
+      float remaining = (end - now) / 60000.0f;
+      webServer.sendContent_P(PSTR("<p>Boost aktiv ~ "));
+      webServer.sendContent(String((int)remaining));
+      webServer.sendContent_P(PSTR(" min verbleibend</p>"));
+    }
+  }
+
+  webServer.sendContent_P(PSTR("<div><div class='grid'><label>Boost</label>"
+                              "<button class='btn' type='button' onclick=\"postAction('/boost')\">Starten</button>"
+                              "<span></span><span></span></div></div></div>"));
+
+  // History card
+  webServer.sendContent_P(PSTR("<div class='card'><div class='status-row'><h3>Verlauf</h3>"
+                              "<div class='viewBtns'><a href='/history.json?days=1'>"
+                              "<button class='btn' type='button'>Verlauf (1 Tag)</button></a>"
+                              "<button class='btn' type='button' data-view='chart'>Diagramm</button>"
+                              "<button class='btn' type='button' data-view='table'>Tabelle</button>"
+                              "</div></div>"
+                              "<div id='histChartWrap'>"
+                              "<svg id='histSvg' viewBox='0 0 600 320' preserveAspectRatio='xMidYMid meet' style='width:100%;height:auto;border:1px solid var(--border);border-radius:.75rem;'></svg>"
+                              "</div>"
+                              "<div id='histTableWrap' style='display:none;'></div>"
+                              "</div>"));
+
+  // JS
+  webServer.sendContent_P(PSTR("<script>const schedCfg={dayStart:"));
+  webServer.sendContent(String(getDayStartMinutes()));
+  webServer.sendContent_P(PSTR(",nightStart:"));
+  webServer.sendContent(String(getNightStartMinutes()));
+  webServer.sendContent_P(PSTR(",daySet:"));
+  webServer.sendContent(String(getDaySetPoint(), 1));
+  webServer.sendContent_P(PSTR(",nightSet:"));
+  webServer.sendContent(String(getNightSetPoint(), 1));
+  webServer.sendContent_P(PSTR("};\n"));
+  webServer.sendContent_P(pageScript);
+  webServer.sendContent_P(PSTR("</script>"));
+
+  webServer.sendContent_P(pageTail);
 }
 
 /***************** handleConfigPost ********************************************
