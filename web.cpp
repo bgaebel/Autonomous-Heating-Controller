@@ -1,5 +1,6 @@
 #include "web.h"
 #include <ESP8266WebServer.h>
+#include <ESP8266WiFi.h>
 #include "config.h"
 #include "control.h"
 #include "sensor.h"
@@ -105,7 +106,7 @@ static void renderIndex()
 
   html += F("<!DOCTYPE html><html><head><meta charset='utf-8'>");
   html += F("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  html += F("<title>Heating Controller &ndash; ");
+  html += F("<title>Heizungssteuerung &ndash; ");
   html += getBaseTopic();
   html += F("</title>");
 
@@ -123,7 +124,9 @@ static void renderIndex()
     "h2{margin-bottom:.2rem;}"
     ".card{background:var(--card);border:1px solid var(--border);border-radius:.9rem;padding:1rem;"
     "box-shadow:var(--shadow-soft);margin-bottom:1rem;}"
-    ".grid{display:grid;grid-template-columns:12rem 1fr auto auto;gap:.5rem;align-items:center;}"
+    ".grid{display:grid;grid-template-columns:12rem minmax(0,1fr) 2.4rem 2.4rem;gap:.5rem;align-items:center;}"
+    ".grid input{height:2.2rem;padding:.4rem .6rem;}"
+    ".grid .btn{height:2.2rem;min-width:2.2rem;padding:0;display:inline-flex;align-items:center;justify-content:center;}"
     ".btn{padding:.45rem .9rem;border:1px solid var(--border);border-radius:.7rem;background:transparent;color:var(--text);"
     "cursor:pointer;transition:transform .08s ease, background .15s ease,border-color .15s ease;}"
     ".btn:hover{background:rgba(122,162,255,.12);border-color:rgba(122,162,255,.55);}"
@@ -135,7 +138,7 @@ static void renderIndex()
     ".status-bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.08);}"
     ".muted{color:var(--muted);}"
     ".split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}"
-    "@media(max-width:840px){.split{grid-template-columns:1fr;}.grid{grid-template-columns:10rem 1fr auto auto;}}"
+    "@media(max-width:840px){.split{grid-template-columns:1fr;}.grid{grid-template-columns:10rem minmax(0,1fr) 2.4rem 2.4rem;}}"
     ".pill{display:inline-block;padding:.2rem .55rem;border-radius:999px;border:1px solid var(--border);font-size:.85rem;color:var(--muted);}"
     ".hr{height:1px;background:var(--border);margin:.8rem 0;opacity:.8;}"
     "details summary{cursor:pointer;color:var(--accent);}"
@@ -153,30 +156,43 @@ static void renderIndex()
   // Header card
   html += F("<div class='card'>");
   html += F("<div class='status-row'>");
-  html += F("<div><h2>Heating Controller</h2><div class='muted small'>Room: ");
+  html += F("<div><h2>Heizungssteuerung</h2><div class='muted small'>Raum: ");
   html += getBaseTopic();
+  html += F(" &middot; Version: ");
+  html += APP_VERSION;
+  html += F(" &middot; Lokal: http://");
+  html += getHostLabel();
+  html += F(".local &middot; IP: ");
+  if (WiFi.isConnected())
+  {
+    html += WiFi.localIP().toString();
+  }
+  else
+  {
+    html += F("offline");
+  }
   html += F("</div></div>");
 
   html += F("<div class='status-item ");
   html += (heaterIsOn ? "status-ok" : "status-bad");
   html += F("'>🔥 ");
-  html += (heaterIsOn ? "Heater ON" : "Heater OFF");
+  html += (heaterIsOn ? "Heizung EIN" : "Heizung AUS");
   html += F("</div>");
 
   if (heaterIsOn)
   {
-    html += F("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heater OFF</button>");
+    html += F("<button class='btn' type='button' onclick=\"if(confirm('Heizung wirklich ausschalten?')){postAction('/heaterOff');}\">🛑 Heizung ausschalten</button>");
   }
 
   // MQTT + time status
   html += F("<div class='status-item ");
   html += (mqttIsConnected() ? "status-ok" : "status-bad");
   html += F("'>MQTT ");
-  html += (mqttIsConnected() ? "Connected" : "Disconnected");
+  html += (mqttIsConnected() ? "Verbunden" : "Getrennt");
   html += F("</div>");
 
   html += F("<div class='status-item'>");
-  html += F("Temp: <b>");
+  html += F("Temperatur: <b>");
   html += String(t, 1);
   html += F("&deg;C</b>");
   html += F("</div>");
@@ -186,7 +202,7 @@ static void renderIndex()
 
   // Config card: schedule + setpoints
   html += F("<div class='card'>");
-  html += F("<h3>Schedule</h3>");
+  html += F("<h3>Zeitplan</h3>");
 
   html += F("<div class='split'>");
 
@@ -231,6 +247,9 @@ static void renderIndex()
   html += F("'>"
             "<button class='btn' type='button' onclick=\"nudge('hysteresis',-0.1)\">-</button>"
             "<button class='btn' type='button' onclick=\"nudge('hysteresis',0.1)\">+</button></div>");
+  html += F("<div class='muted small'>Einschalttemperatur: <b>");
+  html += String(getSetPoint() - getHysteresis(), 1);
+  html += F(" &deg;C</b> (Soll - Hysterese)</div>");
 
   // Boost minutes
   html += F("<div class='grid'><label>Boost (min)</label>"
@@ -248,28 +267,28 @@ static void renderIndex()
     if (end > now)
     {
       float remaining = (end - now) / 60000.0f;
-      html += F("<p>Boost active ~ ");
+      html += F("<p>Boost aktiv ~ ");
       html += String((int)remaining);
-      html += F(" min remaining</p>");
+      html += F(" min verbleibend</p>");
     }
   }
 
   html += F("<div>");
   html += F("<div class='grid'><label>Boost</label>"
-            "<button class='btn' type='button' onclick=\"postAction('/boost')\">Start</button>"
+            "<button class='btn' type='button' onclick=\"postAction('/boost')\">Starten</button>"
             "<span></span><span></span></div>");
   html += F("</div>");
   html += F("</div>");  // close card
 
   // History card
   html += F("<div class='card'>");
-  html += F("<div class='status-row'><h3>History</h3>");
+  html += F("<div class='status-row'><h3>Verlauf</h3>");
   html += F("<div class='viewBtns'>");
   html += F("<a href='/history.json?days=1'>"
-          "<button class='btn' type='button'>History (1 day)</button>"
+          "<button class='btn' type='button'>Verlauf (1 Tag)</button>"
           "</a>");
-  html += F("<button class='btn' type='button' data-view='chart'>Chart</button>");
-  html += F("<button class='btn' type='button' data-view='table'>Table</button>");
+  html += F("<button class='btn' type='button' data-view='chart'>Diagramm</button>");
+  html += F("<button class='btn' type='button' data-view='table'>Tabelle</button>");
   html += F("</div></div>");
 
   html += F("<div id='histChartWrap'>");
@@ -487,7 +506,7 @@ function buildHistoryTable(history)
 
     if (!rows || !rows.length)
     {
-      drawText(20, 40, "No history", "");
+      drawText(20, 40, "Kein Verlauf", "");
       return;
     }
 
@@ -569,9 +588,9 @@ function buildHistoryTable(history)
       renderChart(history);
     })
     .catch(function(){
-      tableWrap.innerHTML = "<div class='muted'>History load failed</div>";
+      tableWrap.innerHTML = "<div class='muted'>Verlauf konnte nicht geladen werden</div>";
       clearSvg();
-      drawText(20, 40, "History load failed", "");
+      drawText(20, 40, "Verlauf konnte nicht geladen werden", "");
     });
 
 })();
