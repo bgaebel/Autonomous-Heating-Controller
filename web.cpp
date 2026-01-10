@@ -149,6 +149,19 @@ th,td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left
 #histSvg .hover-dot{fill:var(--bad);}
 #histSvg .hover-text{fill:var(--text);font-size:11px;font-family:sans-serif;}
 .heat-on-band{fill:var(--heat-band);}
+/* remove number input spinners */
+input[type=number]
+{
+  -moz-appearance: textfield; /* Firefox */
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button
+{
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 </style>
 </head><body>
 )HTML";
@@ -843,7 +856,7 @@ static void renderIndex()
 
   // Tagesbereich
   webServer.sendContent_P(PSTR("<div class='card'><h3>Tag</h3><div class='grid'><label>Soll (°C)</label>"
-                              "<input name='daySetPoint' type='number' step='0.1' min='5' max='35' value='"));
+                              "<input name='daySetPoint' type='number' step='0.5' min='5' max='35' value='"));
   webServer.sendContent(String(getDaySetPoint(), 1));
   webServer.sendContent_P(PSTR("'>"
                               "<button class='btn' type='button' onclick=\"nudge('daySetPoint',-0.5)\">-</button>"
